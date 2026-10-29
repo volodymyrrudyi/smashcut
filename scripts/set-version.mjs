@@ -17,7 +17,7 @@ for (const dir of ["cli", "core", "runtime", "three"]) {
   console.log(`${pkg.name}@${version}`);
 }
 // The Claude Code plugin ships the CLI's skill, so it carries the same version.
-const plugin = new URL("../packages/cli/.claude-plugin/plugin.json", import.meta.url);
+const plugin = new URL("../plugin/.claude-plugin/plugin.json", import.meta.url);
 const manifest = JSON.parse(readFileSync(plugin, "utf8"));
 manifest.version = version;
 writeFileSync(plugin, JSON.stringify(manifest, null, 2) + "\n");

@@ -241,7 +241,9 @@ Key decisions:
     is tested by rendering it. It ships in the npm package, `smashcut init` copies it into
     `.claude/skills/smashcut/` with an `AGENTS.md` and a `CLAUDE.md` that imports it, and the repo is a Claude
     Code marketplace (`.claude-plugin/marketplace.json`) for `/plugin install smashcut --marketplace
-    volodymyrrudyi/smashcut`.
+    volodymyrrudyi/smashcut`. The plugin is its own folder, `plugin/` (manifest, icon, a copy of the skill kept
+    identical by a test), because Claude Desktop rejects plugins with a top-level `bin/` directory and the CLI
+    package has one.
   - `clipLabel` and `soundEnd` moved from the dev timeline into core, so `inspect` and the timeline name things
     the same way.
 

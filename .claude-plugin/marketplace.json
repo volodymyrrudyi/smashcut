@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "smashcut",
-      "source": "./packages/cli",
+      "source": "./plugin",
       "description": "Make videos as TypeScript timelines with smashcut: write timeline.ts, check it with inspect and contact sheets, render an MP4."
     }
   ]
