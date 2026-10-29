@@ -1,0 +1,13 @@
+{
+  "title": "Renders this week",
+  "total": 12840,
+  "days": [
+    { "day": "Mon", "renders": 1320 },
+    { "day": "Tue", "renders": 1710 },
+    { "day": "Wed", "renders": 1580 },
+    { "day": "Thu", "renders": 2050 },
+    { "day": "Fri", "renders": 2390 },
+    { "day": "Sat", "renders": 1650 },
+    { "day": "Sun", "renders": 2140 }
+  ]
+}

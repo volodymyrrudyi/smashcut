@@ -1,0 +1,11 @@
+WEBVTT
+
+NOTE Inline timestamps time each word.
+
+1
+00:00:00.300 --> 00:00:02.600
+<00:00:00.300>Every <00:00:00.700>word <00:00:01.050>lights <00:00:01.400>up <00:00:01.650>as <00:00:01.850>it's <00:00:02.050>spoken.
+
+2
+00:00:02.800 --> 00:00:04.200
+<v Narrator>Without timestamps, timing is estimated.</v>
