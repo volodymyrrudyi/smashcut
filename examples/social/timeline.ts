@@ -118,7 +118,7 @@ export default defineVideo({
       ),
     ]),
     subtitles(srt, { preset: "highlight", inset: 200, highlight: "#facc15", style: { fontFamily: font, fontSize: 64, maxWidth: 980 } }),
-    decor.watermark({ text: "@smashcut", corner: "top-right", margin: 56, size: 40 }),
+    decor.watermark({ text: "@getsmashcut", corner: "top-right", margin: 56, size: 40 }),
     decor.vignette({ strength: 0.35 }),
   ],
   audio: [
