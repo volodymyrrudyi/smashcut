@@ -62,7 +62,7 @@ jobs:
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
-      - run: npm pack --workspaces --pack-destination "$RUNNER_TEMP/pack"
+      - run: mkdir -p "$RUNNER_TEMP/pack" && npm pack --workspaces --pack-destination "$RUNNER_TEMP/pack"
       - name: Use the packages the way a user would, outside the repo
         working-directory: ${{ runner.temp }}
         run: |
