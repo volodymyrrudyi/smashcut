@@ -1,18 +1,41 @@
 {
   "name": "@smashcut/three",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "three.js scenes as smashcut clips.",
+  "keywords": [
+    "video",
+    "three",
+    "threejs",
+    "webgl"
+  ],
+  "license": "MIT",
+  "author": "Volodymyr Rudyi",
+  "homepage": "https://github.com/volodymyrrudyi/smashcut#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volodymyrrudyi/smashcut.git",
+    "directory": "packages/three"
+  },
+  "bugs": {
+    "url": "https://github.com/volodymyrrudyi/smashcut/issues"
+  },
   "type": "module",
   "exports": {
-    ".": "./src/index.tsx"
+    ".": "./src/index.tsx",
+    "./package.json": "./package.json"
   },
   "types": "./src/index.tsx",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "@smashcut/core": "0.0.1",
-    "@smashcut/runtime": "0.0.1",
+    "@smashcut/core": "0.1.0",
+    "@smashcut/runtime": "0.1.0",
+    "@types/three": "0.170.0",
     "react": "^19.3.1",
     "three": "0.170.0"
-  },
-  "devDependencies": {
-    "@types/three": "0.170.0"
   }
 }

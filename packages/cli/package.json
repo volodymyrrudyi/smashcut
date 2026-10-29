@@ -1,13 +1,41 @@
 {
   "name": "smashcut",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Videos as TypeScript timelines: preview live and render frame-exact MP4s.",
+  "keywords": [
+    "video",
+    "typescript",
+    "react",
+    "ffmpeg",
+    "render",
+    "cli",
+    "motion-graphics"
+  ],
+  "license": "MIT",
+  "author": "Volodymyr Rudyi",
+  "homepage": "https://github.com/volodymyrrudyi/smashcut#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volodymyrrudyi/smashcut.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/volodymyrrudyi/smashcut/issues"
+  },
   "type": "module",
   "bin": {
-    "smashcut": "./bin/smashcut.js"
+    "smashcut": "bin/smashcut.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=24"
   },
   "dependencies": {
-    "@smashcut/core": "0.0.1",
-    "@smashcut/runtime": "0.0.1",
+    "@smashcut/core": "0.1.0",
+    "@smashcut/runtime": "0.1.0",
     "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "vite": "^8.3.5"

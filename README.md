@@ -9,19 +9,35 @@ my-video/
   lib/          # optional .ts / .tsx modules (React components, helpers)
 ```
 
-## Usage
+## Quick start
 
-Requires Node 24+ and `ffmpeg` on PATH. Run `npx playwright install chromium-headless-shell` once.
+Requires Node 24+ and `ffmpeg` on PATH.
+
+```sh
+npx smashcut init my-video
+cd my-video && npm install
+npx playwright install chromium-headless-shell   # once per machine
+npm run dev       # live preview + timeline (space, ←/→, shift+←/→, N = note)
+npm run still     # → out/my-video-0.png (add -- --frame 120 for another frame)
+npm run render    # → out/my-video.mp4
+```
+
+`npm run dev` and friends call the `smashcut` command, so `npx smashcut render . --fps 60 --scale 2` and the rest of
+the options below work too. three.js scenes need `npm install @smashcut/three three`.
+
+## Working on smashcut itself
 
 ```sh
 npm install
-npm run smashcut -- dev examples/hello                  # live preview + timeline (space, ←/→, shift+←/→, N = note)
+npm run smashcut -- dev examples/hello                  # live preview + timeline
 npm run smashcut -- still examples/hello --frame 120    # → examples/hello/out/hello-120.png
 npm run smashcut -- render examples/hello -c 4          # → examples/hello/out/hello.mp4
 npm run smashcut -- render examples/hello --fps 120     # same timing, more frames → hello-120fps.mp4
 npm run smashcut -- render examples/hello --scale 2     # 1080p layout rendered at 3840×2160 (4K)
 npm test && npm run typecheck
 ```
+
+Publishing to npm is described in `docs/publishing.md`.
 
 ### Reviewing in the dev preview
 
@@ -40,8 +56,9 @@ reopening the preview.
 
 ### Videos outside this repo
 
-A video folder can live anywhere. `@smashcut/*` and React always resolve from this install, so the folder needs no
-`node_modules`. To make `smashcut` available everywhere, add a shell alias:
+A video folder can live anywhere. Made with an installed `smashcut init`, it's a small npm package that depends on
+smashcut. Made from this repo, it needs no `node_modules`: `@smashcut/*` and React resolve from the repo, and
+`tsconfig.json` points editors at its sources. To use the repo's CLI everywhere, add a shell alias:
 
 ```sh
 alias smashcut="node /path/to/smashcut/packages/cli/bin/smashcut.js"
@@ -49,8 +66,7 @@ smashcut init ~/videos/launch     # timeline.ts, lib/Title.tsx, assets/, .gitign
 smashcut dev ~/videos/launch
 ```
 
-`smashcut init` writes a `tsconfig.json` whose `paths` point at this install's sources and React types, so editors
-autocomplete the API. It refuses to write into a folder that isn't empty.
+`smashcut init` refuses to write into a folder that isn't empty.
 
 ## Authoring
 
@@ -217,7 +233,7 @@ defineVideo({
 - `@smashcut/runtime`: a React renderer in the browser. It exposes `window.__smashcut.seek(frame)`, which renders a
   frame and resolves once images, fonts and `delayRender` handles are ready. Render mode makes
   `Date.now`, `performance.now` and `Math.random` deterministic per frame.
-- `smashcut` (the CLI, command `smashcut`): serves the project through Vite and drives headless Chromium (Playwright). It screenshots
+- `smashcut` (the CLI): serves the project through Vite and drives headless Chromium (Playwright). It screenshots
   each frame and pipes the PNGs into ffmpeg (H.264). The frame range is split into chunks rendered by
   parallel pages, and the chunks are then concatenated.
 - Footage is never seeked in a `<video>` element. The CLI probes each file with ffprobe, extracts its frames as
@@ -226,5 +242,5 @@ defineVideo({
 
 ## Roadmap (next milestones)
 
-Timeline cue helpers, publishing the packages, `smashcut capture <url>`.
+Timeline cue helpers, `smashcut capture <url>`.
 See `docs/plan.md`.

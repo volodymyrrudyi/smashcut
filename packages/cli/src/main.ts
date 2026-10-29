@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { initProject } from "./init";
+import { FROM_NPM } from "./paths";
 import { MAX_FPS } from "./media";
 import { renderAudio, renderStill, renderVideo } from "./render";
 import { startServer } from "./server";
@@ -60,7 +61,7 @@ async function main(argv: string[]) {
   switch (command) {
     case "init": {
       const files = await initProject(dir);
-      console.log(`Created ${path.resolve(dir)}:\n${files.map((f) => `  ${f}`).join("\n")}\n\nNext: smashcut dev ${dir}`);
+      console.log(`Created ${path.resolve(dir)}:\n${files.map((f) => `  ${f}`).join("\n")}\n\nNext: ${FROM_NPM ? `cd ${dir} && npm install && npm run dev` : `smashcut dev ${dir}`}`);
       return;
     }
     case "dev": {

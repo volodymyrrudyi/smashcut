@@ -1,13 +1,38 @@
 {
   "name": "@smashcut/runtime",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Browser runtime for smashcut: renders a timeline frame by frame with React.",
+  "keywords": [
+    "video",
+    "react",
+    "renderer",
+    "timeline"
+  ],
+  "license": "MIT",
+  "author": "Volodymyr Rudyi",
+  "homepage": "https://github.com/volodymyrrudyi/smashcut#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volodymyrrudyi/smashcut.git",
+    "directory": "packages/runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/volodymyrrudyi/smashcut/issues"
+  },
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
   },
   "types": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "@smashcut/core": "0.0.1",
+    "@smashcut/core": "0.1.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   }

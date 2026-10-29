@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { ENV_TYPES, TYPE_PATHS } from "./paths";
+import { ENV_TYPES, FROM_NPM, VERSION, monorepoTypePaths } from "./paths";
 
 const TIMELINE = `import { defineVideo, fade, group, modern, music, react, series, sfx, solid, spring, text } from "@smashcut/core";
 import { Title } from "./lib/Title";
@@ -61,7 +61,25 @@ export function Title({ title, subtitle }: { title: string; subtitle: string }) 
 
 const GITIGNORE = `.smashcut/
 out/
-`;
+${FROM_NPM ? "node_modules/\n" : ""}`;
+
+/** Installed from npm, a video folder is a small npm package that depends on smashcut. */
+function packageJson(name: string): string {
+  const pkg = {
+    name: name.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+    private: true,
+    type: "module",
+    scripts: { dev: "smashcut dev .", still: "smashcut still .", render: "smashcut render ." },
+    devDependencies: {
+      "@smashcut/core": `^${VERSION}`,
+      "@smashcut/runtime": `^${VERSION}`,
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0",
+      smashcut: `^${VERSION}`,
+    },
+  };
+  return JSON.stringify(pkg, null, 2) + "\n";
+}
 
 function tsconfig(): string {
   return (
@@ -79,10 +97,10 @@ function tsconfig(): string {
           isolatedModules: true,
           allowImportingTsExtensions: true,
           types: [],
-          // Editor support: smashcut and React types come from the smashcut install this folder was created with.
-          paths: TYPE_PATHS,
+          // In the monorepo, editor types come from its sources; installed, they come from node_modules.
+          ...(FROM_NPM ? {} : { paths: monorepoTypePaths() }),
         },
-        include: ["timeline.ts", "lib", ENV_TYPES],
+        include: ["timeline.ts", "lib", FROM_NPM ? "smashcut-env.d.ts" : ENV_TYPES],
       },
       null,
       2,
@@ -104,6 +122,10 @@ export async function initProject(dir: string): Promise<string[]> {
     ".gitignore": GITIGNORE,
     "tsconfig.json": tsconfig(),
   };
+  if (FROM_NPM) {
+    files["package.json"] = packageJson(name);
+    files["smashcut-env.d.ts"] = await readFile(ENV_TYPES, "utf8");
+  }
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(root, file)), { recursive: true });
     await writeFile(path.join(root, file), content);

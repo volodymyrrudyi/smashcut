@@ -217,9 +217,17 @@ Key decisions:
       decoration nodes, ambient determinism and level, ducking, typos, groove intensity, plucked-string pitch and decay) and a clean typecheck.
 
 ### Remaining for the MVP (from the original plan)
-- [ ] **Publish the packages.** Video folders resolve smashcut from a local install today (`smashcut init` + a shell
-      alias). Publishing `@smashcut/core`, `@smashcut/runtime`, `@smashcut/three` and the CLI as `smashcut` would allow
-      `npx smashcut` and normal dependencies.
+- [x] **npm packages.** `@smashcut/core`, `@smashcut/runtime`, `@smashcut/three` and the CLI as `smashcut`, all
+      MIT and versioned together. They ship TypeScript sources: Vite compiles them for the browser, and the CLI runs
+      through `tsx`.
+  - The CLI resolves smashcut and React from the video folder first, then from its own install. Vite serves the
+    `@smashcut/*` packages as source instead of pre-bundling them. Pre-bundled, a cold render of the three.js
+    example loaded a second React.
+  - Installed, `smashcut init` writes a `package.json` (smashcut, React types, `dev` / `still` / `render` scripts)
+    and a `smashcut-env.d.ts`. From the monorepo it writes `tsconfig` paths into the repo, as before.
+  - Verified from packed tarballs in a folder outside the repo: init, install, still, an MP4 with audio, `tsc`, the
+    three.js example with `@smashcut/three` installed (and a clear error without it). Releasing is in
+    `docs/publishing.md`.
 
 ### Next up / nice to have
 - [ ] **`smashcut capture <url>`.** Turn `examples/footage/capture.ts` into a CLI command: record a scripted web page

@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { createServer, type Plugin, type ViteDevServer } from "vite";
 import { MAX_FPS, MEDIA_SAMPLE_RATE, MediaCache } from "./media";
-import { ALIASES, SMASHCUT_ROOT } from "./paths";
+import { aliases } from "./paths";
 
 const ENTRY_ID = "virtual:smashcut-entry";
 const RESOLVED_ENTRY_ID = "\0" + ENTRY_ID;
@@ -181,6 +181,7 @@ export async function startServer(
   }
   const render = opts.mode === "render";
   const media = new MediaCache(root);
+  const alias = aliases(root);
   const server = await createServer({
     configFile: false,
     root,
@@ -189,12 +190,22 @@ export async function startServer(
     logLevel: render ? "error" : "info",
     plugins: [smashcutPlugin(media, root)],
     oxc: { jsx: { runtime: "automatic" } },
-    // A video folder can live anywhere: smashcut and React always resolve from the smashcut install.
-    resolve: { alias: ALIASES, dedupe: ["react", "react-dom"] },
+    // A video folder can live anywhere: smashcut and React resolve from the folder's node_modules or the CLI's.
+    resolve: { alias, dedupe: ["react", "react-dom"] },
     optimizeDeps: {
       // Discover dependencies up front so Vite never reloads the page mid-render.
       entries: ["timeline.ts", "lib/**/*.{ts,tsx}"],
-      include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        ...(alias.three ? ["three"] : []),
+      ],
+      // smashcut's packages ship TypeScript sources; serve them as source, as in the monorepo, rather than
+      // pre-bundling them (which, installed from npm, found `three` late and loaded a second React).
+      exclude: Object.keys(alias).filter((name) => name.startsWith("@smashcut/")),
     },
     server: {
       port: opts.port ?? (render ? 0 : 3210),
@@ -202,7 +213,7 @@ export async function startServer(
       hmr: !render,
       // The footage cache writes thousands of frames; don't watch it.
       watch: render ? null : { ignored: ["**/.smashcut/**", "**/out/**"] },
-      fs: { allow: [root, SMASHCUT_ROOT] },
+      fs: { allow: [root, ...Object.values(alias)] },
     },
   });
   await server.listen();
