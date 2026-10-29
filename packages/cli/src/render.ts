@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Browser, Page } from "playwright";
+import type { TimelineSummary } from "@smashcut/core";
 import { captureFrame, launchBrowser, openVideo, type RenderPage } from "./browser";
 import { startServer } from "./server";
 
@@ -31,13 +32,14 @@ async function withVideo<T>(
   projectDir: string,
   pageOpts: { verbose?: boolean; fps?: number; scale?: number },
   fn: (ctx: { browser: Browser; url: string; first: RenderPage }) => Promise<T>,
+  { footage = true } = {},
 ): Promise<T> {
   const { server, url, media } = await startServer(projectDir, { mode: "render" });
   const browser = await launchBrowser();
   try {
     const first = await openVideo(browser, url, pageOpts);
     // Extract footage frames up front: inside a frame capture it would count against the delayRender timeout.
-    await Promise.all(first.meta.footage.map((src) => media.frames(src, first.meta.fps)));
+    if (footage) await Promise.all(first.meta.footage.map((src) => media.frames(src, first.meta.fps)));
     return await fn({ browser, url, first });
   } finally {
     await browser.close();
@@ -53,6 +55,69 @@ export async function renderStill(projectDir: string, opts: StillOptions): Promi
     }
     await mkdir(path.dirname(opts.output), { recursive: true });
     await writeFile(opts.output, await captureFrame(page, opts.frame));
+  });
+}
+
+/** The resolved timeline: every clip, caption and sound with its times. Nothing is rendered. */
+export async function inspectVideo(projectDir: string, opts: { fps?: number; verbose?: boolean } = {}): Promise<TimelineSummary> {
+  return withVideo(projectDir, opts, ({ first }) => first.page.evaluate(() => window.__smashcut!.inspect()), { footage: false });
+}
+
+export interface SheetOptions {
+  output: string;
+  /** Number of frames, evenly spaced. Default 12. */
+  count?: number;
+  /** Or one frame every this many seconds. */
+  every?: number;
+  columns?: number;
+  fps?: number;
+  verbose?: boolean;
+}
+
+/**
+ * Frames for a contact sheet: one every `every` seconds starting at 0, or `count` frames each taken from the
+ * middle of an equal slice of the video (so the first isn't a black fade-in and the last isn't the final frame).
+ */
+export function sheetFrames(total: number, fps: number, { count, every }: { count?: number; every?: number }): number[] {
+  if (every !== undefined) {
+    if (!(every > 0)) throw new Error("--every must be a positive number of seconds");
+    const step = Math.max(1, Math.round(every * fps));
+    return Array.from({ length: Math.ceil(total / step) }, (_, i) => i * step);
+  }
+  const n = Math.max(1, Math.min(count ?? 12, total));
+  return [...new Set(Array.from({ length: n }, (_, i) => Math.min(total - 1, Math.floor(((i + 0.5) * total) / n))))];
+}
+
+/** Render a grid of frames, each labelled with its time and frame number, as one PNG. */
+export async function renderSheet(projectDir: string, opts: SheetOptions): Promise<{ frames: number[]; fps: number }> {
+  return withVideo(projectDir, opts, async ({ browser, first }) => {
+    const { meta, page } = first;
+    const frames = sheetFrames(meta.durationInFrames, meta.fps, opts);
+    const shots: string[] = [];
+    for (const f of frames) shots.push((await captureFrame(page, f)).toString("base64"));
+    // Thumbnails fit 480×360, so landscape and portrait videos both stay readable.
+    const k = Math.min(480 / meta.width, 360 / meta.height);
+    const w = Math.round(meta.width * k);
+    const h = Math.round(meta.height * k);
+    const columns = Math.min(opts.columns ?? (meta.width >= meta.height ? 4 : 6), frames.length);
+    const stamp = (f: number) => {
+      const s = f / meta.fps;
+      return `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, "0")}  ·  frame ${f}`;
+    };
+    const cells = frames
+      .map((f, i) => `<figure><img src="data:image/png;base64,${shots[i]}"><figcaption>${stamp(f)}</figcaption></figure>`)
+      .join("");
+    const sheet = await browser.newPage({ viewport: { width: columns * (w + 12) + 12, height: 200 } });
+    await sheet.setContent(`<!doctype html><style>
+      body { margin: 0; padding: 12px; background: #18181b; display: grid; gap: 12px;
+        grid-template-columns: repeat(${columns}, ${w}px); font: 600 14px/1 ui-monospace, Menlo, monospace; color: #e4e4e7; }
+      figure { margin: 0; } img { display: block; width: ${w}px; height: ${h}px; object-fit: contain; background: #000; }
+      figcaption { padding: 7px 2px 0; }
+    </style>${cells}`);
+    await sheet.waitForFunction(() => [...document.images].every((img) => img.complete));
+    await mkdir(path.dirname(path.resolve(opts.output)), { recursive: true });
+    await sheet.screenshot({ path: opts.output, fullPage: true });
+    return { frames, fps: meta.fps };
   });
 }
 

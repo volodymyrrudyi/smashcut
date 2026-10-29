@@ -211,10 +211,10 @@ Key decisions:
     to a `smashcut render` terminal, narration captions, decor, and `groove({ intensity, end })` ending on a chord.
   - Shared look: `hello/lib/theme.ts` (`theme`, `paper`, `font`), `Fonts.tsx` and `Background.tsx`. Each video that
     uses Inter has its own `assets/fonts/inter.woff2`, since `asset()` resolves per video.
-- [x] **Tests.** 62 unit tests (time resolution, visuals, audio determinism and levels, footage timing, frame
+- [x] **Tests.** 68 unit tests (time resolution, visuals, audio determinism and levels, footage timing, frame
       indices and audio mixing, typing schedules and carets, finger map and rhythm, keyboard sound and its finger
       variance, camera framing, SRT/VTT parsing and word timing, subtitle durations, frame resolution, pip,
-      decoration nodes, ambient determinism and level, ducking, typos, groove intensity, plucked-string pitch and decay) and a clean typecheck.
+      decoration nodes, ambient determinism and level, ducking, typos, groove intensity, plucked-string pitch and decay, timeline summaries, contact-sheet frame picking) and a clean typecheck.
 
 ### Remaining for the MVP (from the original plan)
 - [x] **npm packages.** `@smashcut/core`, `@smashcut/runtime`, `@smashcut/three` and the CLI as `smashcut`, all
@@ -228,6 +228,22 @@ Key decisions:
   - Verified from packed tarballs in a folder outside the repo: init, install, still, an MP4 with audio, `tsc`, the
     three.js example with `@smashcut/three` installed (and a clear error without it). Releasing is in
     `docs/publishing.md`.
+
+- [x] **Agent support.** A coding agent can write a video and check its own work without watching a preview.
+  - `smashcut sheet <dir>`: a contact sheet, `--count 12` frames (each from the middle of an equal slice, so not
+    a black first frame) or one `--every N` seconds, labelled with time and frame number, as one PNG. Thumbnails
+    fit 480×360, so vertical videos stay readable.
+  - `smashcut inspect <dir> [--json]`: the resolved timeline (`describeTimeline` / `formatTimeline` in core):
+    the clip tree with transitions, captions and sounds grouped by label. It runs through the runtime bridge, so
+    it reports the same load errors a render would, and skips footage extraction.
+  - The skill (`packages/cli/skills/smashcut/SKILL.md`): the write / inspect / sheet / fix / render loop,
+    timing and layout, an API table, the determinism rules, the examples and common errors. Its example timeline
+    is tested by rendering it. It ships in the npm package, `smashcut init` copies it into
+    `.claude/skills/smashcut/` with an `AGENTS.md` and a `CLAUDE.md` that imports it, and the repo is a Claude
+    Code marketplace (`.claude-plugin/marketplace.json`) for `/plugin install smashcut --marketplace
+    volodymyrrudyi/smashcut`.
+  - `clipLabel` and `soundEnd` moved from the dev timeline into core, so `inspect` and the timeline name things
+    the same way.
 
 ### Next up / nice to have
 - [ ] **`smashcut capture <url>`.** Turn `examples/footage/capture.ts` into a CLI command: record a scripted web page

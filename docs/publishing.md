@@ -33,7 +33,7 @@ They ship TypeScript sources (`src/`), not a build: Vite compiles them for the b
 
 ```sh
 git switch main && git pull
-node scripts/set-version.mjs 0.2.0      # every package and their dependencies on each other
+node scripts/set-version.mjs 0.2.0      # every package, their dependencies, and the plugin
 npm install                             # updates package-lock.json
 npm run typecheck && npm test
 npm pack --workspaces --dry-run         # check each tarball's file list and size

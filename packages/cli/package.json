@@ -13,7 +13,7 @@
   ],
   "license": "MIT",
   "author": "Volodymyr Rudyi",
-  "homepage": "https://github.com/volodymyrrudyi/smashcut#readme",
+  "homepage": "https://getsmashcut.dev",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/volodymyrrudyi/smashcut.git",
@@ -28,7 +28,8 @@
   },
   "files": [
     "bin",
-    "src"
+    "src",
+    "skills"
   ],
   "engines": {
     "node": ">=24"

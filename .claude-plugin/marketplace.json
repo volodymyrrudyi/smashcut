@@ -1,0 +1,14 @@
+{
+  "name": "smashcut",
+  "owner": {
+    "name": "Volodymyr Rudyi"
+  },
+  "description": "smashcut: make videos as TypeScript timelines, checked and rendered by your agent.",
+  "plugins": [
+    {
+      "name": "smashcut",
+      "source": "./packages/cli",
+      "description": "Make videos as TypeScript timelines with smashcut: write timeline.ts, check it with inspect and contact sheets, render an MP4."
+    }
+  ]
+}

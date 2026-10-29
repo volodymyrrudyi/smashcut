@@ -4,13 +4,17 @@ import { parseArgs } from "node:util";
 import { initProject } from "./init";
 import { FROM_NPM } from "./paths";
 import { MAX_FPS } from "./media";
-import { renderAudio, renderStill, renderVideo } from "./render";
+import { formatTimeline } from "@smashcut/core";
+import { inspectVideo, renderAudio, renderSheet, renderStill, renderVideo } from "./render";
 import { startServer } from "./server";
 
 const USAGE = `Usage:
   smashcut init <dir>                               Create a new video folder (anywhere on disk)
   smashcut dev <dir> [--port 3210]                  Preview the video in the browser
   smashcut still <dir> [--frame 0] [-o out.png]     Render a single frame to PNG
+  smashcut sheet <dir> [--count 12 | --every 1] [--columns N] [-o out.png]
+                                                Render a contact sheet: many frames, labelled, in one PNG
+  smashcut inspect <dir> [--json]                   List every clip, caption and sound with its times
   smashcut render <dir> [-o out.mp4] [--concurrency N] [--from N] [--to N] [--crf 18]
                                                 Render the video to MP4
   smashcut audio <dir> [-o out.wav]                 Export just the soundtrack
@@ -41,6 +45,10 @@ async function main(argv: string[]) {
       crf: { type: "string" },
       fps: { type: "string" },
       scale: { type: "string" },
+      count: { type: "string" },
+      every: { type: "string" },
+      columns: { type: "string" },
+      json: { type: "boolean" },
       verbose: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     },
@@ -74,6 +82,26 @@ async function main(argv: string[]) {
       const output = values.output ?? path.join(dir, "out", `${name}${suffix}-${frame}.png`);
       await renderStill(dir, { frame, output, fps, scale, verbose: values.verbose });
       console.log(`Wrote ${output}`);
+      return;
+    }
+    case "sheet": {
+      const output = values.output ?? path.join(dir, "out", `${name}${suffix}-sheet.png`);
+      const every = values.every === undefined ? undefined : Number(values.every);
+      const { frames, fps: rate } = await renderSheet(dir, {
+        output,
+        count: int(values.count, "count"),
+        every,
+        columns: int(values.columns, "columns"),
+        fps,
+        verbose: values.verbose,
+      });
+      const times = frames.map((f) => `${(f / rate).toFixed(2)}s`).join(", ");
+      console.log(`Wrote ${output}: ${frames.length} frames at ${times}`);
+      return;
+    }
+    case "inspect": {
+      const summary = await inspectVideo(dir, { fps, verbose: values.verbose });
+      console.log(values.json ? JSON.stringify(summary, null, 2) : formatTimeline(summary));
       return;
     }
     case "audio": {

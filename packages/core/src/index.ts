@@ -9,3 +9,4 @@ export * from "./camera";
 export * from "./subtitles";
 export * from "./visual";
 export * from "./audio";
+export * from "./inspect";

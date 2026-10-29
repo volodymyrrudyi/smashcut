@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import type { AudioClip, Composition, Node, ResolvedClip, ResolvedComposition, Stereo } from "@smashcut/core";
+import { clipLabel, soundEnd, type AudioClip, type Composition, type ResolvedClip, type ResolvedComposition, type Stereo } from "@smashcut/core";
 
 /** A review note pinned to a moment, saved to `.smashcut/notes.json` by the dev server. */
 export interface Note {
@@ -67,34 +67,6 @@ const KIND_COLORS: Record<string, string> = {
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, "0")}`;
 const short = (s: string, n = 40) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
-const file = (src: string) => decodeURIComponent(src.split("/").pop() ?? src);
-
-/** A human name for a clip: its id, or what it shows. */
-export function clipLabel(node: Node): string {
-  if (node.id) return node.id;
-  switch (node.kind) {
-    case "text":
-      return typeof node.text === "string" ? `“${short(node.text.replace(/\n/g, " "), 34)}”` : "text (animated)";
-    case "image":
-    case "video":
-      return `${node.kind}: ${file(node.src)}`;
-    case "react":
-      return `<${node.component.displayName || node.component.name || "Component"}>`;
-    case "solid":
-      return typeof node.color === "string" ? `solid ${node.color}` : "solid (animated)";
-    case "group":
-      // Unnamed groups say what's in them; name scenes with `id` for clearer labels.
-      return short(`group: ${node.children.map(clipLabel).join(", ")}`, 48);
-    case "series":
-      return `series (${node.items.filter((i) => i.kind !== "transition").length} scenes)`;
-    case "frame":
-      return `frame: ${node.frame.chrome ?? "browser"}${node.frame.url ? ` ${node.frame.url}` : node.frame.title ? ` ${node.frame.title}` : ""}`;
-    case "subtitles":
-      return `subtitles (${node.cues.length} cues, ${node.preset})`;
-    case "decor":
-      return `decor: ${node.decor.type}`;
-  }
-}
 
 function clipDetails(clip: ResolvedClip, fps: number): [string, string][] {
   const { node } = clip;
@@ -116,10 +88,6 @@ function clipDetails(clip: ResolvedClip, fps: number): [string, string][] {
   if (node.enter) d.push(["enter", typeof node.enter === "string" ? node.enter : node.enter.type]);
   if (node.exit) d.push(["exit", typeof node.exit === "string" ? node.exit : node.exit.type]);
   return d;
-}
-
-function soundEnd(clip: AudioClip, total: number) {
-  return Math.min(total, clip.at + (clip.duration ?? clip.source.duration ?? total - clip.at));
 }
 
 interface TimelineProps {

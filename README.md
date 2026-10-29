@@ -1,6 +1,6 @@
 # smashcut
 
-Videos defined in TypeScript. Each video is a folder:
+Videos defined in TypeScript ([getsmashcut.dev](https://getsmashcut.dev)). Each video is a folder:
 
 ```
 my-video/
@@ -20,10 +20,31 @@ npx playwright install chromium-headless-shell   # once per machine
 npm run dev       # live preview + timeline (space, ←/→, shift+←/→, N = note)
 npm run still     # → out/my-video-0.png (add -- --frame 120 for another frame)
 npm run render    # → out/my-video.mp4
+npx smashcut sheet .     # → out/my-video-sheet.png: 12 frames in one image, labelled with their times
+npx smashcut inspect .   # every clip, caption and sound with its start and end (--json for scripts)
 ```
 
 `npm run dev` and friends call the `smashcut` command, so `npx smashcut render . --fps 60 --scale 2` and the rest of
 the options below work too. three.js scenes need `npm install @smashcut/three three`.
+
+## Using it with coding agents
+
+smashcut is built to be driven by a coding agent (Claude Code, Codex, Cursor, …): the video is code, and the CLI
+lets the agent check its own work without watching a preview.
+
+- **The skill.** `smashcut init` writes `.claude/skills/smashcut/SKILL.md` into every video folder: the working
+  loop, the API, the rules that keep renders deterministic, and which example to start from. It also writes a short
+  `AGENTS.md` (read by Codex, Cursor and others) and a `CLAUDE.md` that points to it. The skill ships inside the
+  `smashcut` npm package, so it always matches the installed version.
+- **Without a project**, install it as a Claude Code plugin: `/plugin install smashcut --marketplace volodymyrrudyi/smashcut`.
+- **Seeing the video.** `smashcut sheet <dir>` renders a contact sheet (`--count 12` by default, or
+  `--every 0.5` seconds), each frame labelled with its time and frame number, so an agent sees the whole video in
+  one image. `smashcut still <dir> --frame N` gives one frame at full size.
+- **Checking the timeline.** `smashcut inspect <dir>` prints every clip, caption and sound with its start and
+  end, the same names the dev timeline shows (`--json` for scripts). It fails with the load error when
+  `timeline.ts` is broken.
+- **Review notes.** Notes left in `smashcut dev` (press N) are saved to `.smashcut/notes.json` with what was on
+  screen and audible at that moment, so you can tell an agent to "fix the notes".
 
 ## Working on smashcut itself
 
@@ -31,6 +52,8 @@ the options below work too. three.js scenes need `npm install @smashcut/three th
 npm install
 npm run smashcut -- dev examples/hello                  # live preview + timeline
 npm run smashcut -- still examples/hello --frame 120    # → examples/hello/out/hello-120.png
+npm run smashcut -- sheet examples/hello                # → examples/hello/out/hello-sheet.png
+npm run smashcut -- inspect examples/hello              # the resolved timeline as text
 npm run smashcut -- render examples/hello -c 4          # → examples/hello/out/hello.mp4
 npm run smashcut -- render examples/hello --fps 120     # same timing, more frames → hello-120fps.mp4
 npm run smashcut -- render examples/hello --scale 2     # 1080p layout rendered at 3840×2160 (4K)

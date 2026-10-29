@@ -38,10 +38,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npx playwright install --with-deps chromium-headless-shell
-      - name: Render a still of each example
+      - name: Inspect each example and render a contact sheet of it
         run: |
           for dir in examples/*/; do
-            npm run smashcut --silent -- still "$dir" --frame 60
+            npm run smashcut --silent -- inspect "$dir" > /dev/null
+            npm run smashcut --silent -- sheet "$dir" --count 6
           done
       - name: Render one example to MP4 (video, audio, footage)
         run: npm run smashcut --silent -- render examples/footage -c 2
@@ -73,3 +74,5 @@ jobs:
           npx smashcut init vid
           npx smashcut still vid --frame 60
           test -s vid/out/vid-60.png
+          test -s vid/.claude/skills/smashcut/SKILL.md && test -s vid/AGENTS.md
+          npx smashcut inspect vid --json > /dev/null

@@ -16,3 +16,9 @@ for (const dir of ["cli", "core", "runtime", "three"]) {
   writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
   console.log(`${pkg.name}@${version}`);
 }
+// The Claude Code plugin ships the CLI's skill, so it carries the same version.
+const plugin = new URL("../packages/cli/.claude-plugin/plugin.json", import.meta.url);
+const manifest = JSON.parse(readFileSync(plugin, "utf8"));
+manifest.version = version;
+writeFileSync(plugin, JSON.stringify(manifest, null, 2) + "\n");
+console.log(`plugin smashcut@${version}`);

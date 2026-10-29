@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { mixAudio, resolveComposition, type Composition, type ResolvedComposition, type Stereo } from "@smashcut/core";
+import { describeTimeline, mixAudio, resolveComposition, type Composition, type ResolvedComposition, type Stereo, type TimelineSummary } from "@smashcut/core";
 import { loadMediaAudio, loadMediaInfo } from "./media";
 import { Preview } from "./Preview";
 import { Stage } from "./Stage";
@@ -26,6 +26,8 @@ export interface SmashcutBridge {
   seek(frame: number): Promise<void>;
   /** The mixed soundtrack as base64 interleaved 16-bit little-endian PCM, or null if silent. */
   audio(sampleRate: number): Promise<string | null>;
+  /** Every clip, caption and sound with its times, for `smashcut inspect`. */
+  inspect(): TimelineSummary;
 }
 
 declare global {
@@ -130,5 +132,6 @@ export async function mount(composition: Composition, el = document.getElementBy
       const mix = await audio(sampleRate);
       return mix && encodePcm(mix);
     },
+    inspect: () => describeTimeline(comp, composition),
   };
 }

@@ -1,0 +1,17 @@
+{
+  "name": "smashcut",
+  "version": "0.1.0",
+  "description": "Make videos as TypeScript timelines with smashcut: write timeline.ts, check it with inspect and contact sheets, render an MP4.",
+  "author": {
+    "name": "Volodymyr Rudyi"
+  },
+  "homepage": "https://getsmashcut.dev",
+  "repository": "https://github.com/volodymyrrudyi/smashcut",
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "typescript",
+    "render",
+    "motion-graphics"
+  ]
+}

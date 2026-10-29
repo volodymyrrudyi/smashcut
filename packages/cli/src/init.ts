@@ -1,7 +1,29 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { ENV_TYPES, FROM_NPM, VERSION, monorepoTypePaths } from "./paths";
+
+/** The agent skill that ships with the CLI, copied into every video folder. */
+const SKILL = fileURLToPath(new URL("../skills/smashcut/SKILL.md", import.meta.url));
+
+/** Short instructions for coding agents (Codex, Cursor, Claude Code, …); the skill has the full guide. */
+function agents(): string {
+  const cli = FROM_NPM ? "npx smashcut" : "smashcut";
+  return `# Notes for coding agents
+
+This folder is a [smashcut](https://getsmashcut.dev) video. \`timeline.ts\` describes it, \`assets/\` holds its files
+and \`lib/\` its React components. The full guide is in \`.claude/skills/smashcut/SKILL.md\`.
+
+- After every change, check it: \`${cli} inspect .\` lists every clip, caption and sound with its times, and
+  \`${cli} sheet .\` writes \`out/<name>-sheet.png\`, frames labelled with their times. Open the sheet and look.
+- One full-size frame: \`${cli} still . --frame 120\`. The final video: \`${cli} render .\` → \`out/<name>.mp4\`.
+- Don't start \`${cli} dev\` yourself: it's a server for a person to watch. Their review notes are in
+  \`.smashcut/notes.json\`.
+- Animate only from time (\`(t) => …\` props or \`useClip()\`): no timers, CSS animations or \`Date.now()\`. Wrap
+  async loading in \`delayRender\`, use \`rng(seed)\` for randomness, and reference files with \`asset("name")\`.
+`;
+}
 
 const TIMELINE = `import { defineVideo, fade, group, modern, music, react, series, sfx, solid, spring, text } from "@smashcut/core";
 import { Title } from "./lib/Title";
@@ -121,6 +143,9 @@ export async function initProject(dir: string): Promise<string[]> {
     "assets/.gitkeep": "",
     ".gitignore": GITIGNORE,
     "tsconfig.json": tsconfig(),
+    "AGENTS.md": agents(),
+    "CLAUDE.md": "@AGENTS.md\n",
+    ".claude/skills/smashcut/SKILL.md": await readFile(SKILL, "utf8"),
   };
   if (FROM_NPM) {
     files["package.json"] = packageJson(name);
