@@ -1,0 +1,39 @@
+name: Release
+
+# Push a tag like v0.2.0 (after `node scripts/set-version.mjs 0.2.0` is committed) to publish every package.
+# Publishing uses npm trusted publishing: no token is stored; npm trusts this workflow file (see docs/publishing.md).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@latest
+      - name: Check the tag matches every package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for dir in packages/*/; do
+            version=$(node -p "require('./${dir}package.json').version")
+            if [ "$version" != "$tag" ]; then
+              echo "::error::${dir} is at $version but the tag is v$tag. Run node scripts/set-version.mjs $tag first."
+              exit 1
+            fi
+          done
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm publish --workspaces

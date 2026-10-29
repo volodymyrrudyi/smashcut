@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck and test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [24, 26]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  examples:
+    name: Render every example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium-headless-shell
+      - name: Render a still of each example
+        run: |
+          for dir in examples/*/; do
+            npm run smashcut --silent -- still "$dir" --frame 60
+          done
+      - name: Render one example to MP4 (video, audio, footage)
+        run: npm run smashcut --silent -- render examples/footage -c 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renders
+          path: examples/*/out/
+          retention-days: 7
+
+  package:
+    name: Install from packed tarballs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm pack --workspaces --pack-destination "$RUNNER_TEMP/pack"
+      - name: Use the packages the way a user would, outside the repo
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir try && cd try
+          npm init -y > /dev/null
+          npm install -D "$RUNNER_TEMP"/pack/*.tgz
+          npx playwright install --with-deps chromium-headless-shell
+          npx smashcut init vid
+          npx smashcut still vid --frame 60
+          test -s vid/out/vid-60.png
