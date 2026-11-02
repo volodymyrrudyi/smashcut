@@ -3,7 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { alignmentToWords, matchVoice } from "./elevenlabs";
-import { parseEnv, PROVIDERS, type VoiceProvider } from "./provider";
+import { writeFile } from "node:fs/promises";
+import type { IncomingMessage } from "node:http";
+import { crossSite } from "../server";
+import { loadEnv, parseEnv, PROVIDERS, type VoiceProvider } from "./provider";
 import { generateMissing, readTakes, removeTakeFiles, takeName, unusedTakeFiles } from "./takes";
 
 describe("alignmentToWords", () => {
@@ -115,5 +118,36 @@ describe("generating takes", () => {
     expect(unused.every((f) => f.startsWith("drop-"))).toBe(true);
     await removeTakeFiles(root, unused);
     expect((await readdir(path.join(root, "voiceovers"))).every((f) => f.startsWith("keep-"))).toBe(true);
+  });
+});
+
+describe("loadEnv", () => {
+  it("only loads provider API keys from a folder's .env", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "smashcut-env-"));
+    await writeFile(path.join(dir, ".env"), "ELEVENLABS_API_KEY=from-file\nNODE_OPTIONS=--require ./evil.js\nSMASHCUT_TEST_X=1\n");
+    const saved = { key: process.env.ELEVENLABS_API_KEY, opts: process.env.NODE_OPTIONS };
+    delete process.env.ELEVENLABS_API_KEY;
+    try {
+      loadEnv(dir);
+      expect(process.env.ELEVENLABS_API_KEY).toBe("from-file");
+      expect(process.env.NODE_OPTIONS).toBe(saved.opts);
+      expect(process.env.SMASHCUT_TEST_X).toBeUndefined();
+    } finally {
+      if (saved.key === undefined) delete process.env.ELEVENLABS_API_KEY;
+      else process.env.ELEVENLABS_API_KEY = saved.key;
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("crossSite", () => {
+  const req = (headers: Record<string, string>) => ({ headers }) as unknown as IncomingMessage;
+  it("allows the local page and refuses other sites and rebound host names", () => {
+    expect(crossSite(req({ host: "localhost:3210", "sec-fetch-site": "same-origin" }))).toBe(false);
+    expect(crossSite(req({ host: "127.0.0.1:3210" }))).toBe(false);
+    expect(crossSite(req({ host: "[::1]:3210" }))).toBe(false);
+    expect(crossSite(req({ host: "localhost:3210", "sec-fetch-site": "cross-site" }))).toBe(true);
+    expect(crossSite(req({ host: "evil.example:3210", "sec-fetch-site": "same-origin" }))).toBe(true);
+    expect(crossSite(req({}))).toBe(true);
   });
 });

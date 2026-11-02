@@ -97,10 +97,16 @@ async function serveMedia(media: MediaCache, url: URL, req: IncomingMessage, res
   }
 }
 
-/** Requests another site makes the browser send to localhost are refused: these endpoints write to disk. */
-function crossSite(req: IncomingMessage): boolean {
+/**
+ * Requests another site makes the browser send to localhost are refused: these endpoints write to disk (and
+ * generating voiceovers costs money). That covers cross-site fetches, and DNS rebinding, where another site's name
+ * resolves to this machine and so looks same-origin: its Host header isn't a local name.
+ */
+export function crossSite(req: IncomingMessage): boolean {
   const site = req.headers["sec-fetch-site"];
-  return site !== undefined && site !== "same-origin" && site !== "none";
+  if (site !== undefined && site !== "same-origin" && site !== "none") return true;
+  const host = (req.headers.host ?? "").replace(/:\d+$/, "").replace(/^\[|\]$/g, "").toLowerCase();
+  return !(host === "localhost" || host.endsWith(".localhost") || host === "::1" || /^127(\.\d{1,3}){3}$/.test(host));
 }
 
 const MAX_NOTES_BYTES = 1_000_000;
@@ -138,12 +144,21 @@ async function serveNotes(root: string, req: IncomingMessage, res: ServerRespons
 }
 
 const MAX_VOICE_BYTES = 1_000_000;
+/** Bounds on one generate request, so a runaway page can't spend much. */
+const MAX_LINES = 200;
+const MAX_LINE_CHARS = 5_000;
 
 /** POST { requests }: generate the voiceover lines the page found missing. The page reloads when they land. */
 async function serveVoiceGenerate(root: string, req: IncomingMessage, res: ServerResponse) {
   res.setHeader("Content-Type", "application/json");
   if (req.method !== "POST") {
     res.statusCode = 405;
+    res.end("{}");
+    return;
+  }
+  // A JSON content type can't be sent cross-origin without a CORS preflight, which this endpoint never grants.
+  if (!req.headers["content-type"]?.startsWith("application/json")) {
+    res.statusCode = 415;
     res.end("{}");
     return;
   }
@@ -159,6 +174,11 @@ async function serveVoiceGenerate(root: string, req: IncomingMessage, res: Serve
   try {
     const { requests } = JSON.parse(body) as { requests: VoiceRequest[] };
     if (!Array.isArray(requests)) throw new Error("requests must be an array");
+    const valid = (r: VoiceRequest) =>
+      r && typeof r.provider === "string" && typeof r.voice === "string" && typeof r.text === "string" && r.text.length <= MAX_LINE_CHARS;
+    if (requests.length > MAX_LINES || !requests.every(valid)) {
+      throw new Error(`requests must be at most ${MAX_LINES} lines of { provider, voice, text } up to ${MAX_LINE_CHARS} characters`);
+    }
     const takes = await generateMissing(root, requests);
     res.end(JSON.stringify({ generated: takes.length }));
   } catch (err) {

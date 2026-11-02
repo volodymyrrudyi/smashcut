@@ -70,9 +70,13 @@ export function parseEnv(text: string): Record<string, string> {
   return out;
 }
 
-/** Load `<root>/.env` into process.env without overriding variables that are already set. */
+/**
+ * Load the providers' API keys from `<root>/.env` into process.env, without overriding variables that are already
+ * set. Only those keys: a cloned folder's .env must not be able to set things like NODE_OPTIONS or PATH.
+ */
 export function loadEnv(root: string): void {
   const file = path.join(root, ".env");
   if (!existsSync(file)) return;
-  for (const [k, v] of Object.entries(parseEnv(readFileSync(file, "utf8")))) process.env[k] ??= v;
+  const allowed = new Set(Object.values(PROVIDERS).map((p) => p.keyEnv));
+  for (const [k, v] of Object.entries(parseEnv(readFileSync(file, "utf8")))) if (allowed.has(k)) process.env[k] ??= v;
 }
