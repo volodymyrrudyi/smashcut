@@ -106,7 +106,7 @@ Anything that moves takes a function of time, like `kf(...)` here or `(t) => …
 | **3D** | `three()` from `@smashcut/three` | [`three`](examples/three) |
 | **Overlays** | `decor.vignette()`, `watermark()`, `border()`, `grain()` | [`decor`](examples/decor) |
 | **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()`, `sfx.*`, ducking | [`launch`](examples/launch) |
-| **Voiceovers** | `voice("…", { voice: "Rachel" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [guide](docs/guide.md#voiceovers) |
+| **Voiceovers** | `voice("…", { voice: "Rachel" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [`voiceover`](examples/voiceover) |
 
 The full API, with every option, is in the **[guide](docs/guide.md)**.
 
@@ -154,6 +154,7 @@ Each folder in [`examples/`](examples) is a complete video. Copy the closest one
 | [`motion`](examples/motion) | Every enter/exit effect and transition, easings, `spring`, seeded `rng` particles, `chiptune()` and a hand-written `pattern()` sting |
 | [`frames`](examples/frames) | Every `framed()` chrome, phone viewports, `pip()`, a screenshot with a click call-out and `zoomTo()` |
 | [`subtitles`](examples/subtitles) | SRT and VTT in all four presets, word timing, custom styles, an `ambient()` bed that ducks |
+| [`voiceover`](examples/voiceover) | ElevenLabs narration driving the cuts, titles, effects and highlighted captions. Needs `ELEVENLABS_API_KEY` |
 | [`typing`](examples/typing) | A form typed on four keyboard switches with a corrected typo, then a `camera()` that follows the fields |
 | [`footage`](examples/footage) | A Playwright screen recording cut into scenes, one at 2× speed, a looping picture-in-picture |
 | [`decor`](examples/decor) | `vignette`, `watermark`, `border` and `grain`, alone and together |

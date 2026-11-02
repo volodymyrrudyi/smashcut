@@ -197,6 +197,8 @@ export default defineVideo({
   - `.cues` are captions split at sentences, pauses and ~42 characters, in timeline seconds. Put `subtitles(...)`
     at the top level (not inside a scene that starts later), or set its `from` to match.
 - **Music under the voice.** `music(..., { duck: 0.6 })` dips the music while the voice speaks.
+- **Example.** `examples/voiceover` builds every scene, title, effect and caption from three lines. Its
+  `.gitignore` keeps the generated audio out of the repo, so it needs a key the first time you run it.
 - **Providers.** Takes record the provider, the resolved voice id and the model, so you can always tell where a
   file came from. Switching provider needs a voice from the new provider, and makes new takes. Adding one
   means implementing `VoiceProvider` in `packages/cli/src/voice/` (synthesise text into audio and word timings,
