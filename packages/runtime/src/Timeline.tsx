@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { clipLabel, soundEnd, type AudioClip, type Composition, type ResolvedClip, type ResolvedComposition, type Stereo } from "@smashcut/core";
+import { clipLabel, isVoiceClip, soundEnd, type AudioClip, type Composition, type ResolvedClip, type ResolvedComposition, type Stereo } from "@smashcut/core";
 
 /** A review note pinned to a moment, saved to `.smashcut/notes.json` by the dev server. */
 export interface Note {
@@ -222,6 +222,10 @@ export function Timeline({ comp, composition, frame, playing, mix, onSeek, focus
           ["volume", String(clip.volume)],
         ];
         if (clip.duck) details.push(["duck", String(clip.duck)]);
+        if (isVoiceClip(clip)) {
+          details.push(["text", clip.voice.text], ["voice", `${clip.voice.provider} / ${clip.voice.voice}`]);
+          details.push(["take", clip.take ? decodeURIComponent(clip.take.audio) : "not generated yet (estimated timing)"]);
+        }
         if (clip.fadeIn || clip.fadeOut) details.push(["fades", `in ${clip.fadeIn} s, out ${clip.fadeOut} s`]);
         return {
           key: `sound:${label}:${i}`,

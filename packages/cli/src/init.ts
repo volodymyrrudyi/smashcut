@@ -83,6 +83,7 @@ export function Title({ title, subtitle }: { title: string; subtitle: string }) 
 
 const GITIGNORE = `.smashcut/
 out/
+.env
 ${FROM_NPM ? "node_modules/\n" : ""}`;
 
 /** Installed from npm, a video folder is a small npm package that depends on smashcut. */

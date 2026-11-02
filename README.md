@@ -106,6 +106,7 @@ Anything that moves takes a function of time, like `kf(...)` here or `(t) => …
 | **3D** | `three()` from `@smashcut/three` | [`three`](examples/three) |
 | **Overlays** | `decor.vignette()`, `watermark()`, `border()`, `grain()` | [`decor`](examples/decor) |
 | **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()`, `sfx.*`, ducking | [`launch`](examples/launch) |
+| **Voiceovers** | `voice("…", { voice: "Rachel" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [guide](docs/guide.md#voiceovers) |
 
 The full API, with every option, is in the **[guide](docs/guide.md)**.
 
@@ -122,6 +123,7 @@ Run them in a video folder as `npx smashcut <command> .` (or `npm run dev` / `st
 | `sheet <dir>` | A contact sheet: 12 labelled frames in one PNG (`--count N`, `--every 0.5`) |
 | `inspect <dir>` | Print every clip, caption and sound with its start and end (`--json` for scripts) |
 | `audio <dir>` | Export just the soundtrack as WAV |
+| `voiceover <dir>` | Generate missing voiceover lines into `voiceovers/` (`--prune` deletes unused takes); `voices` lists voices |
 
 ## Working with coding agents
 

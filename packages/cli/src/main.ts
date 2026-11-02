@@ -5,8 +5,10 @@ import { initProject } from "./init";
 import { FROM_NPM } from "./paths";
 import { MAX_FPS } from "./media";
 import { formatTimeline } from "@smashcut/core";
-import { inspectVideo, renderAudio, renderSheet, renderStill, renderVideo } from "./render";
+import { inspectVideo, renderAudio, renderSheet, renderStill, renderVideo, voiceover } from "./render";
 import { startServer } from "./server";
+import { getProvider, loadEnv, providerKey } from "./voice/provider";
+import { DEFAULT_VOICE_PROVIDER } from "@smashcut/core";
 
 const USAGE = `Usage:
   smashcut init <dir>                               Create a new video folder (anywhere on disk)
@@ -18,6 +20,12 @@ const USAGE = `Usage:
   smashcut render <dir> [-o out.mp4] [--concurrency N] [--from N] [--to N] [--crf 18]
                                                 Render the video to MP4
   smashcut audio <dir> [-o out.wav]                 Export just the soundtrack
+  smashcut voiceover <dir> [--prune]                Generate missing voiceover lines into voiceovers/;
+                                                --prune deletes takes the timeline no longer uses
+  smashcut voices [<dir>] [--provider elevenlabs]   List the voices your provider account offers
+
+Voiceover lines are generated automatically by dev, render, still, sheet and audio. Set the provider's key
+(ELEVENLABS_API_KEY) in the environment or in the video folder's .env.
 
 Options:
   --fps N         Override the timeline's frame rate (frames/ranges use this rate)
@@ -49,6 +57,8 @@ async function main(argv: string[]) {
       every: { type: "string" },
       columns: { type: "string" },
       json: { type: "boolean" },
+      prune: { type: "boolean" },
+      provider: { type: "string" },
       verbose: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     },
@@ -56,6 +66,16 @@ async function main(argv: string[]) {
   const [command, dir] = positionals;
   if (values.help || !command) {
     console.log(USAGE);
+    return;
+  }
+  if (command === "voices") {
+    if (dir) loadEnv(path.resolve(dir));
+    const provider = getProvider(values.provider ?? DEFAULT_VOICE_PROVIDER);
+    const voices = await provider.voices(providerKey(provider, `${provider.name} voices can't be listed`));
+    const width = Math.max(...voices.map((v) => v.name.length), 4);
+    for (const v of voices.sort((a, b) => a.name.localeCompare(b.name))) {
+      console.log(`${v.name.padEnd(width)}  ${v.id}${v.description ? `  ${v.description.slice(0, 80)}` : ""}`);
+    }
     return;
   }
   if (!dir) throw new Error(`Missing video directory.\n\n${USAGE}`);
@@ -102,12 +122,24 @@ async function main(argv: string[]) {
     case "inspect": {
       const summary = await inspectVideo(dir, { fps, verbose: values.verbose });
       console.log(values.json ? JSON.stringify(summary, null, 2) : formatTimeline(summary));
+      if (!values.json && summary.pendingVoices) {
+        console.log(`\n${summary.pendingVoices} voiceover line(s) not generated yet: their timings are estimates (run \`smashcut voiceover ${dir}\`)`);
+      }
       return;
     }
     case "audio": {
       const output = values.output ?? path.join(dir, "out", `${name}.wav`);
       const written = await renderAudio(dir, { frame: 0, output, verbose: values.verbose });
       console.log(written ? `Wrote ${output}` : "This video has no audio");
+      return;
+    }
+    case "voiceover": {
+      const report = await voiceover(dir, { prune: values.prune, verbose: values.verbose });
+      console.log(`${report.lines} voiceover line(s), ${report.generated} newly generated.`);
+      if (report.unused.length) {
+        const files = report.unused.map((f) => `  voiceovers/${f}`).join("\n");
+        console.log(values.prune ? `Deleted unused takes:\n${files}` : `Unused takes (delete with --prune):\n${files}`);
+      }
       return;
     }
     case "render": {

@@ -14,6 +14,8 @@ export * from "./ambient";
 export * from "./groove";
 export * from "./mix";
 export * from "./keyboard";
+export * from "./file";
+export * from "./voice";
 export { blipSound, chimeSound, clickSound, popSound, whooshSound };
 export { bellSound, pluckSound, riserSound, strumSound, swooshSound, tapSound, thudSound, tickSound };
 

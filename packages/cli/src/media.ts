@@ -36,10 +36,10 @@ export class MediaCache {
 
   /** Map a timeline `src` such as `/assets/clip.mp4` to a file inside the project. */
   file(src: string): string {
-    if (/^[a-z]+:/i.test(src)) throw new Error(`Footage must be a project file, got "${src}"`);
+    if (/^[a-z]+:/i.test(src)) throw new Error(`Media must be a project file, got "${src}"`);
     const file = path.join(this.root, decodeURIComponent(src));
-    if (!file.startsWith(this.root + path.sep)) throw new Error(`Footage path escapes the project: "${src}"`);
-    if (!existsSync(file)) throw new Error(`Footage not found: ${src}`);
+    if (!file.startsWith(this.root + path.sep)) throw new Error(`Media path escapes the project: "${src}"`);
+    if (!existsSync(file)) throw new Error(`File not found: ${src}`);
     return file;
   }
 
@@ -111,6 +111,21 @@ export class MediaCache {
     const { dir, count } = await this.frames(src, fps);
     const i = Math.max(0, Math.min(count - 1, index));
     return path.join(dir, `${String(i).padStart(6, "0")}.jpg`);
+  }
+
+  /** Any audio file (a voiceover take, a recording) as interleaved stereo float32 PCM at MEDIA_SAMPLE_RATE. */
+  sound(src: string): Promise<string> {
+    const file = this.file(src);
+    return this.once(`sound:${file}`, async () => {
+      const out = path.join(this.dir, `${await this.key(file, "sound", MEDIA_SAMPLE_RATE)}.f32`);
+      if (!existsSync(out)) {
+        await mkdir(this.dir, { recursive: true });
+        const tmp = `${out}.tmp-${process.pid}`;
+        await ffmpeg(["-i", file, "-vn", "-ac", "2", "-ar", String(MEDIA_SAMPLE_RATE), "-f", "f32le", tmp]);
+        await rename(tmp, out);
+      }
+      return out;
+    });
   }
 
   /** The audio track as interleaved stereo float32 PCM at MEDIA_SAMPLE_RATE, or null if silent. */
