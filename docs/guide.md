@@ -92,6 +92,17 @@ files play with `sample(asset("take.wav"), { at })`.) There are four music style
 - `modern()`: FM plucks and bells, warm pads, sub bass, soft drums, reverb and echo. A foreground track.
 - `chiptune()`: NES-style square/triangle/noise, for retro videos.
 
+Each seed is its own song. It picks the key, a verse and a chorus progression from a library of about thirty, and
+the strumming, bass and melody patterns, so use a different seed for every video (and leave `key` out unless you
+need one). Same seed, same track, always.
+
+To pick the chords yourself, pass `progression`: Roman numerals, one chord per bar (per two bars in `ambient()`),
+e.g. `groove({ progression: "I IV V" })` for the classic three chords, `"I V vi IV"`, `"i VI III VII"` in a minor
+key, or `"blues"` for the twelve-bar blues. Separate them with spaces, commas or dashes. Numerals count from the
+key's own scale; uppercase is a major chord and lowercase minor, so `V` in a minor key is the raised dominant and
+`iv` in a major key the borrowed minor four. `b` / `#` move the root (`bVII`, `bVI`), and `°`, `sus2`, `sus4`, `7`,
+`maj7` change the chord. Unless `bars` is set, the loop is a whole number of passes of the progression.
+
 ```ts
 import { modern, music, sfx } from "@smashcut/core";
 
@@ -108,8 +119,8 @@ defineVideo({
 });
 ```
 
-- `groove({ seed, key, bpm, bars, intensity })` is an upbeat pop/indie groove (112 bpm, I–V–vi–IV-style, one chord
-  per bar).
+- `groove({ seed, key, progression, bpm, bars, intensity })` is an upbeat pop/indie groove (112 bpm, one chord per
+  bar; a verse and a chorus progression in 8 bars, the chorus strummed differently).
   - Instruments: a strummed, partly palm-muted guitar (Karplus-Strong plucked strings, so no bells), a bouncing
     octave bass, kick, shaker, a clap backbeat, 16th hats and short warm saw stabs.
   - `intensity` (0..1, constant or `[seconds, level]` keyframes) builds it. At 0, one strum per beat over a held
@@ -118,7 +129,7 @@ defineVideo({
   - `end: seconds` gives the music a real ending instead of a fade. It snaps to the nearest bar line
     (`grooveBar(bpm)` is one bar in seconds), stops the band and lands on a held home chord that rings out. Leave
     ~2.5 s after it.
-- `ambient({ seed, mood, key, bpm, bars })` is a background bed: slow two-bar add9 / sus pad chords with long fades, a
+- `ambient({ seed, mood, key, progression, bpm, bars })` is a background bed: slow two-bar add9 / sus pad chords with long fades, a
   sustained sub bass and an occasional glassy note far back in the reverb. It has no melody, arpeggio or drums, and
   everything above ~5 kHz is rolled off so keys, clicks and voices sit on top. Moods: `air` (default), `pulse` (adds a
   quiet muted pluck and a soft kick). Use it with `duck`.
@@ -132,9 +143,9 @@ defineVideo({
   the action.
 - Loudness: the exported soundtrack is normalised to `defineVideo({ loudness })`, default -16 LUFS. That's one gain
   for the whole mix, with peaks kept under -1.5 dBFS (AAC overshoots slightly). `loudness: false` keeps the raw mix.
-- `modern({ seed, mood, key, bpm, bars })` is a generated loop: 7th-chord pads, sub bass, an FM pluck arpeggio through a
+- `modern({ seed, mood, key, progression, bpm, bars })` is a generated loop: 7th-chord pads, sub bass, an FM pluck arpeggio through a
   dotted-eighth echo, a bell motif, and soft drums with sidechain pump. Moods: `bright`, `calm`, `driving`.
-- `chiptune({ seed, mood, key, bpm, bars })` is the 8-bit equivalent. Moods: `upbeat`, `chill`, `epic`.
+- `chiptune({ seed, mood, key, progression, bpm, bars })` is the 8-bit equivalent. Moods: `upbeat`, `chill`, `epic`.
 - `sfx`:
   - `pluck`, `strum` (a major-chord "done"), `thud` (a dull "something's wrong"): plucked strings that match
     `groove()`, with no bells.

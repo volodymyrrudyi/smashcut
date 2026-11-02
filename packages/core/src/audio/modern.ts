@@ -1,5 +1,6 @@
 import { addInto, biquad, delay, reverb } from "./fx";
 import { bassNote, clap, fmNote, padNote, shaker, softKick, type FmPreset } from "./instruments";
+import { chordTones, composeHarmony, defaultSlots, fold, ROOTS, type Mode } from "./harmony";
 import { makeStereo, midiToFreq, noteToMidi, rng, type AudioSource, type Stereo } from "./synth";
 
 export type ModernMood = "bright" | "calm" | "driving";
@@ -10,31 +11,20 @@ export interface ModernOptions {
   mood?: ModernMood;
   /** e.g. "C major", "A minor". Picked from the seed when omitted. */
   key?: string;
+  /**
+   * Chords as Roman numerals, one per bar, e.g. "I V vi IV" or "i VI III VII". Picked from the seed when omitted:
+   * a verse and a chorus progression from a library of pop progressions.
+   */
+  progression?: string | string[];
   /** Picked from the mood when omitted. */
   bpm?: number;
-  /** Bars before the loop repeats. Default 8. */
+  /** Bars before the loop repeats; one chord per bar. Default 8 (with `progression`, whole passes of it). */
   bars?: number;
 }
 
-const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
-
-const PROGRESSIONS = {
-  major: [
-    [0, 4, 5, 3], // I V vi IV
-    [5, 3, 0, 4], // vi IV I V
-    [3, 4, 0, 5], // IV V I vi
-    [0, 5, 3, 4], // I vi IV V
-  ],
-  minor: [
-    [0, 5, 2, 6], // i VI III VII
-    [0, 3, 5, 4], // i iv VI v
-    [5, 6, 0, 0], // VI VII i i
-  ],
-};
-
 interface MoodSpec {
   bpm: number;
-  mode: keyof typeof SCALES;
+  mode: Mode;
   kick: number[];
   clap: number[];
   shaker: number[];
@@ -92,10 +82,6 @@ const MOODS: Record<ModernMood, MoodSpec> = {
   },
 };
 
-const ROOTS = ["C", "D", "Eb", "E", "F", "G", "A", "Bb"];
-
-/** Fold a MIDI note into [low, low + 12). */
-const fold = (midi: number, low: number) => low + ((((midi - low) % 12) + 12) % 12);
 
 /**
  * Procedurally composed modern "product video" loop: warm pad chords, round sub bass,
@@ -109,18 +95,15 @@ export function modern(opts: ModernOptions = {}): AudioSource {
   const moodName = opts.mood ?? "bright";
   const mood = MOODS[moodName];
   const [rootName, modeName] = (opts.key ?? `${pick(ROOTS)} ${mood.mode}`).split(/\s+/);
-  const mode = (modeName === "minor" ? "minor" : "major") as keyof typeof SCALES;
-  const scale = SCALES[mode];
+  const mode: Mode = modeName === "minor" ? "minor" : "major";
   const root = noteToMidi(`${rootName}3`);
   const bpm = opts.bpm ?? mood.bpm;
-  const bars = opts.bars ?? 8;
+  const bars = opts.bars ?? defaultSlots(8, opts.progression, mode);
   const step = 60 / bpm / 4;
   const barLength = 16 * step;
-  const progression = pick(PROGRESSIONS[mode]);
+  const harmony = composeHarmony({ random, mode, slots: bars, progression: opts.progression, library: "pop" });
   const pluckPreset = pick(mood.plucks);
   const arpShape = pick(["up", "updown", "pendulum"] as const);
-
-  const degree = (d: number) => root + 12 * Math.floor(d / 7) + scale[((d % 7) + 7) % 7];
 
   type Note = { at: number; length: number; midi: number; velocity: number; pan?: number };
   const pads: Note[] = [];
@@ -129,13 +112,14 @@ export function modern(opts: ModernOptions = {}): AudioSource {
   const bells: Note[] = [];
   const hits: { at: number; kind: "kick" | "clap" | "shaker"; velocity: number; intro: boolean }[] = [];
 
-  const motif: { positions: number[]; notes: number[] }[] = [];
+  // Bell phrases by section and bar within it, so a repeated section brings its tune back.
+  const motifs = new Map<string, { positions: number[]; notes: number[]; chord: unknown }>();
   let prevBell = 76;
 
   for (let bar = 0; bar < bars; bar++) {
     const t0 = bar * barLength;
-    const chord = progression[bar % progression.length];
-    const tones = [chord, chord + 2, chord + 4, chord + 6].map(degree);
+    const chord = harmony.chords[bar];
+    const tones = chordTones(chord, root, true);
 
     // Pad: close voicing of the 7th chord around middle C, one sustained chord per bar.
     for (const m of tones) pads.push({ at: t0, length: barLength * 0.98, midi: fold(m, 55), velocity: 1 });
@@ -155,13 +139,17 @@ export function modern(opts: ModernOptions = {}): AudioSource {
       plucks.push({ at: t0 + s * step, length: step, midi: arp[k], velocity: s % 4 === 0 ? 1 : 0.65, pan: n % 2 ? 0.25 : -0.25 });
     });
 
-    // Bell motif: phrase of bars 0–1 returns in bars 4–5; the loop ends on the tonic.
-    const reuse = bar >= 4 && bar - 4 < motif.length;
-    const positions = reuse ? motif[bar - 4].positions : pick(mood.bell);
+    // Bell motif: a section's opening phrase returns when the section repeats (over the same chords, the same
+    // notes; otherwise the same rhythm); within a section, bars 3–4 answer bars 1–2 in the same rhythm.
+    // The loop ends on the tonic.
+    const key = `${harmony.sections[bar]}${bar % 4}`;
+    const earlier = motifs.get(key) ?? motifs.get(`${harmony.sections[bar]}${(bar % 4) - 2}`);
+    const reuse = earlier !== undefined && earlier.chord === chord && bar !== bars - 1;
+    const positions = earlier ? earlier.positions : pick(mood.bell);
     const notes: number[] = [];
     positions.forEach((s, n) => {
       let midi: number;
-      if (reuse) midi = motif[bar - 4].notes[n];
+      if (reuse) midi = earlier.notes[n];
       else if (bar === bars - 1 && n === positions.length - 1) midi = fold(root, 72);
       else {
         const candidates = tones.map((m) => fold(m, 72));
@@ -172,7 +160,7 @@ export function modern(opts: ModernOptions = {}): AudioSource {
       prevBell = midi;
       bells.push({ at: t0 + s * step, length: step, midi, velocity: 1 });
     });
-    if (bar < 2) motif.push({ positions, notes });
+    if (!motifs.has(key)) motifs.set(key, { positions, notes, chord });
 
     // Drums enter after the first bar on the first pass; the last bar thins out before the loop.
     const last = bar === bars - 1;

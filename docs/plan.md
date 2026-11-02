@@ -165,6 +165,18 @@ Key decisions:
       let-ring strum of the home chord, with held bass, one kick and a reverb send, fading over ~2.8 s.
       `social` and `launch` derive their call-to-action length from it (the next bar line after the outro starts,
       plus ~2.8 s of ring-out), so the videos end on the resolved chord instead of a mid-phrase fade.
+- [x] **More varied generated music** (`packages/core/src/audio/harmony.ts`). The generators used to pick from three
+      or four I / IV / V / vi loops and every template said `seed: 1`, so most videos got the same track.
+  - Shared harmony: Roman-numeral chords relative to the key's scale (borrowed `bVII`, `iv`, `bVI`, the raised `V`
+    in minor, `sus` / `°` / sevenths), a library of ~30 pop and ~17 "dreamy" progressions, and a verse / chorus form
+    (4 slots → A, 8 → A B, 16 → A A B B) with turnarounds so a loop never sits on the tonic twice in a row.
+  - `progression: "I IV V"` (or `"blues"`) in all four generators; the loop defaults to whole passes of it.
+  - Per seed: all twelve keys, and in `groove()` four strum patterns (the chorus strums differently) and three bass
+    lines. `chiptune()`'s lead and `modern()`'s bells snap to chord tones, so borrowed chords don't clash, and bring
+    phrases back when a section repeats.
+  - `smashcut init` writes a random seed; the skill tells agents to pick a fresh seed and leave out `key`.
+  - Tempo is still fixed per style and mood: `grooveBar()` places scenes on bar lines at the default 112 bpm.
+  - Every existing seed now renders a different track than in 0.2.
 - [x] **Example data uses `example.com`.** URL bars, addresses and calls to action in the examples use
       `example.com`, never made-up addresses on real domains.
 - [x] **Timeline and review notes in `smashcut dev`** (`packages/runtime/src/Timeline.tsx`).

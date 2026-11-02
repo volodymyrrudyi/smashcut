@@ -1,5 +1,6 @@
 import { addInto, biquad, reverb } from "./fx";
 import { bassNote, clap, fmNote, padNote, shaker, softKick } from "./instruments";
+import { composeHarmony, defaultSlots, fold, ROOTS, type Mode } from "./harmony";
 import { makeStereo, midiToFreq, noteToMidi, rng, type AudioSource, type Stereo } from "./synth";
 
 /** "air": pads and a sparse glassy texture, nothing rhythmic. "pulse": adds a quiet muted pluck and a soft kick. */
@@ -18,31 +19,16 @@ export interface AmbientOptions {
   intensity?: number | [number, number][];
   /** e.g. "D major", "A minor". Picked from the seed when omitted. */
   key?: string;
+  /**
+   * Chords as Roman numerals, one per two bars, e.g. "I IV vi V" or "i VI III VII". Picked from the seed when
+   * omitted: slow, open progressions (a second one takes over halfway through loops of 16 bars or more).
+   */
+  progression?: string | string[];
   /** Default 72 for a calm bed, 90 once anything rhythmic is in play. */
   bpm?: number;
-  /** Bars before the loop repeats; each chord lasts two bars. Default 8. */
+  /** Bars before the loop repeats; each chord lasts two bars. Default 8 (with `progression`, whole passes of it). */
   bars?: number;
 }
-
-const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
-
-// Slow, unresolved-sounding progressions (scale degrees), one chord per two bars.
-const PROGRESSIONS = {
-  major: [
-    [0, 3, 5, 4], // I IV vi V
-    [0, 5, 3, 3], // I vi IV IV
-    [3, 0, 4, 5], // IV I V vi
-  ],
-  minor: [
-    [0, 5, 2, 6], // i VI III VII
-    [0, 3, 0, 5], // i iv i VI
-  ],
-};
-
-const ROOTS = ["C", "D", "E", "F", "G", "A"];
-
-/** Fold a MIDI note into [low, low + 12). */
-const fold = (midi: number, low: number) => low + ((((midi - low) % 12) + 12) % 12);
 
 const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -76,16 +62,14 @@ export function ambient(opts: AmbientOptions = {}): AudioSource {
   const curve = opts.intensity ?? (opts.mood === "pulse" ? 0.45 : 0);
   const rhythmic = typeof curve === "number" ? curve > 0.2 : curve.some(([, v]) => v > 0.2);
   const [rootName, modeName] = (opts.key ?? `${pick(ROOTS)} ${pick(["major", "major", "minor"])}`).split(/\s+/);
-  const mode = (modeName === "minor" ? "minor" : "major") as keyof typeof SCALES;
-  const scale = SCALES[mode];
+  const mode: Mode = modeName === "minor" ? "minor" : "major";
   const root = noteToMidi(`${rootName}3`);
   const bpm = opts.bpm ?? (rhythmic ? 90 : 72);
-  const bars = opts.bars ?? 8;
+  const bars = opts.bars ?? 2 * defaultSlots(4, opts.progression, mode);
   const beat = 60 / bpm;
   const bar = 4 * beat;
   const chordLength = 2 * bar;
-  const progression = pick(PROGRESSIONS[mode]);
-  const degree = (d: number) => root + 12 * Math.floor(d / 7) + scale[((d % 7) + 7) % 7];
+  const harmony = composeHarmony({ random, mode, slots: Math.max(1, Math.ceil(bars / 2)), progression: opts.progression, library: "dreamy" });
 
   type Note = { at: number; length: number; midi: number; pan?: number; velocity?: number };
   // Bed (always on).
@@ -107,11 +91,12 @@ export function ambient(opts: AmbientOptions = {}): AudioSource {
 
   for (let c = 0; c < bars / 2; c++) {
     const t0 = c * chordLength;
-    const d = progression[c % progression.length];
+    const chord = harmony.chords[c];
+    const base = root + chord.root;
     // Open voicing without the third's tension up top: root, fifth, then third and ninth (add9),
-    // or a sus2 on every other chord for a floating feel.
+    // or a sus2 on some chords for a floating feel.
     const sus = random() < 0.4;
-    const tones = [degree(d), degree(d + 4), degree(d + (sus ? 1 : 2)) + 12, degree(d + 1) + 12];
+    const tones = [base, base + chord.triad[2], base + (sus ? 2 : chord.triad[1]) + 12, base + 2 + 12];
     pads.push(
       { at: t0, length: chordLength, midi: fold(tones[0], 48) },
       { at: t0, length: chordLength, midi: fold(tones[1], 55) },

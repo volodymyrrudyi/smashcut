@@ -12,6 +12,7 @@ export * from "./instruments";
 export * from "./modern";
 export * from "./ambient";
 export * from "./groove";
+export { chordTones, parseChord, parseProgression, type Chord } from "./harmony";
 export * from "./mix";
 export * from "./keyboard";
 export * from "./file";

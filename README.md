@@ -84,7 +84,7 @@ export default defineVideo({
     ]),
   ],
   audio: [
-    music(groove({ seed: 1, key: "D major", intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }),
+    music(groove({ seed: 4821, intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }),
     sfx.swoosh({ at: INTRO - T, length: 0.8 }),
   ],
 });
@@ -105,7 +105,7 @@ Anything that moves takes a function of time, like `kf(...)` here or `(t) => …
 | **Captions** | `subtitles()` from SRT or WebVTT, four presets including word-by-word highlight | [`subtitles`](examples/subtitles) |
 | **3D** | `three()` from `@smashcut/three` | [`three`](examples/three) |
 | **Overlays** | `decor.vignette()`, `watermark()`, `border()`, `grain()` | [`decor`](examples/decor) |
-| **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()`, `sfx.*`, ducking | [`launch`](examples/launch) |
+| **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()` with seeded or hand-picked chord progressions, `sfx.*`, ducking | [`launch`](examples/launch) |
 | **Voiceovers** | `voice("…", { voice: "Sarah" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [`voiceover`](examples/voiceover) |
 
 The full API, with every option, is in the **[guide](docs/guide.md)**.

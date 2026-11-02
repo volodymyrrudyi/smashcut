@@ -1,4 +1,5 @@
 import { addDrum, type Drum } from "./drums";
+import { chordTones, composeHarmony, defaultSlots, ROOTS, SCALES, type Chord, type Mode } from "./harmony";
 import { addTone, makeStereo, midiToFreq, noteToMidi, rng, type AudioSource, type ToneOptions } from "./synth";
 
 export type Mood = "upbeat" | "chill" | "epic";
@@ -9,31 +10,18 @@ export interface ChiptuneOptions {
   mood?: Mood;
   /** e.g. "C major", "A minor", "F# minor". Picked from the seed when omitted. */
   key?: string;
+  /**
+   * Chords as Roman numerals, one per bar, e.g. "I IV V" or "i VI III VII"; "blues" is the twelve-bar blues.
+   * Picked from the seed when omitted: a verse and a chorus progression from a library of pop progressions.
+   */
+  progression?: string | string[];
   /** Picked from the mood when omitted. */
   bpm?: number;
-  /** Bars before the loop repeats. Default 8. */
+  /** Bars before the loop repeats; one chord per bar. Default 8 (with `progression`, whole passes of it). */
   bars?: number;
 }
 
-const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
-
-// Scale degrees (0-based) of one chord per bar.
-const PROGRESSIONS = {
-  major: [
-    [0, 4, 5, 3], // I V vi IV
-    [0, 5, 3, 4], // I vi IV V
-    [5, 3, 0, 4], // vi IV I V
-    [0, 3, 0, 4], // I IV I V
-  ],
-  minor: [
-    [0, 5, 2, 6], // i VI III VII
-    [0, 6, 5, 6], // i VII VI VII
-    [0, 3, 6, 2], // i iv VII III
-    [0, 5, 3, 4], // i VI iv v
-  ],
-};
-
-const MOODS: Record<Mood, { bpm: number; mode: keyof typeof SCALES; drums: Record<Drum, number[]>; rhythms: number[][] }> = {
+const MOODS: Record<Mood, { bpm: number; mode: Mode; drums: Record<Drum, number[]>; rhythms: number[][] }> = {
   upbeat: {
     bpm: 128,
     mode: "major",
@@ -68,7 +56,6 @@ const MOODS: Record<Mood, { bpm: number; mode: keyof typeof SCALES; drums: Recor
   },
 };
 
-const ROOTS = ["C", "D", "E", "F", "G", "A", "Bb", "Eb"];
 
 interface NoteEvent {
   at: number;
@@ -88,18 +75,38 @@ export function chiptune(opts: ChiptuneOptions = {}): AudioSource {
 
   const mood = MOODS[opts.mood ?? "upbeat"];
   const [rootName, modeName] = (opts.key ?? `${pick(ROOTS)} ${mood.mode}`).split(/\s+/);
-  const mode = (modeName === "minor" ? "minor" : "major") as keyof typeof SCALES;
+  const mode: Mode = modeName === "minor" ? "minor" : "major";
   const scale = SCALES[mode];
   const root = noteToMidi(`${rootName}3`);
   const bpm = opts.bpm ?? mood.bpm;
-  const bars = opts.bars ?? 8;
+  const bars = opts.bars ?? defaultSlots(8, opts.progression, mode);
   const step = 60 / bpm / 4;
   const barLength = step * 16;
-  const progression = pick(PROGRESSIONS[mode]);
+  const harmony = composeHarmony({ random, mode, slots: bars, progression: opts.progression, library: "pop" });
 
-  /** MIDI note of scale degree `d` (any integer; wraps into octaves). */
-  const degree = (d: number) => root + 12 * Math.floor(d / 7) + scale[((d % 7) + 7) % 7];
-  const chordOf = (bar: number) => progression[bar % progression.length];
+  // The lead's range: from the key's fourth above middle octave up to its seventh an octave higher.
+  const low = root + 12 + scale[3];
+  const high = root + 24 + scale[6];
+  const inRange = (pcs: Set<number>) => {
+    const out: number[] = [];
+    for (let m = low; m <= high; m++) if (pcs.has((m - root + 120) % 12)) out.push(m);
+    return out;
+  };
+  /** Pitches the lead may use over `chord`: the key's scale, with chord tones from outside the key replacing the
+   *  scale notes a semitone from them (so a borrowed iv or bVII doesn't rub against the melody). */
+  const pitchesOver = (chord: Chord) => {
+    const pcs = new Set(scale);
+    for (const t of chord.triad) {
+      const pc = (chord.root + t) % 12;
+      if (pcs.has(pc)) continue;
+      pcs.delete((pc + 1) % 12);
+      pcs.delete((pc + 11) % 12);
+      pcs.add(pc);
+    }
+    return inRange(pcs);
+  };
+  const chordPitches = (chord: Chord) => inRange(new Set(chord.triad.map((t) => (chord.root + t) % 12)));
+  const nearest = (xs: number[], target: number) => xs.reduce((best, x) => (Math.abs(x - target) < Math.abs(best - target) ? x : best));
 
   const events: NoteEvent[] = [];
   const drums: { at: number; drum: Drum; volume: number }[] = [];
@@ -116,54 +123,59 @@ export function chiptune(opts: ChiptuneOptions = {}): AudioSource {
   };
   const echo: ToneOptions = { ...lead, volume: 0.03, pan: -0.5 };
 
-  // Motifs: the melody of bars 0–1 returns in bars 4–5, so the tune sounds composed rather than random.
-  const motif: { rhythm: number[]; notes: number[] }[] = [];
-  let prev = 7 + chordOf(0); // start around the middle of the lead's range
+  // Motifs: a section's melody returns when the section repeats, and within a section bars 3–4 answer bars 1–2 in
+  // the same rhythm, so the tune sounds composed rather than random.
+  const motifs = new Map<string, { rhythm: number[]; notes: number[]; chord: Chord }>();
+  let prev = root + 24; // start around the middle of the lead's range
 
   for (let bar = 0; bar < bars; bar++) {
     const t0 = bar * barLength;
-    const chord = chordOf(bar);
-    const triad = [chord, chord + 2, chord + 4];
+    const chord = harmony.chords[bar];
+    const tones = chordTones(chord, root);
 
     // Bass: root with octave jumps on upbeat, long roots otherwise.
     for (let s = 0; s < 16; s += 2) {
       if (opts.mood === "chill" && s % 8 !== 0) continue;
       const octave = opts.mood !== "chill" && s % 4 === 2 ? 12 : 0;
-      events.push({ at: t0 + s * step, length: (opts.mood === "chill" ? 7.5 : 1.8) * step, midi: degree(chord) - 12 + octave, tone: bass });
+      events.push({ at: t0 + s * step, length: (opts.mood === "chill" ? 7.5 : 1.8) * step, midi: tones[0] - 12 + octave, tone: bass });
     }
 
     // Pad: one long note per half bar with a fast chord arpeggio.
-    const third = degree(chord + 2) - degree(chord);
-    const fifth = degree(chord + 4) - degree(chord);
+    const [, third, fifth] = chord.triad;
     for (const half of [0, 8]) {
-      events.push({ at: t0 + half * step, length: 7.6 * step, midi: degree(chord) + 12, tone: { ...pad, arp: [0, third, fifth] } });
+      events.push({ at: t0 + half * step, length: 7.6 * step, midi: tones[0] + 12, tone: { ...pad, arp: [0, third, fifth] } });
     }
 
-    // Lead: reuse the opening motif in the second phrase, otherwise compose a new bar.
-    const reuse = bar >= 4 && bar - 4 < motif.length && bar !== bars - 1;
+    // Lead: bring back an earlier phrase where the section repeats, otherwise compose a new bar.
+    const key = `${harmony.sections[bar]}${bar % 4}`;
+    const earlier = motifs.get(key) ?? motifs.get(`${harmony.sections[bar]}${(bar % 4) - 2}`);
     const fresh = pick(mood.rhythms);
-    const rhythm = reuse ? motif[bar - 4].rhythm : fresh;
-    const notes: number[] = reuse ? motif[bar - 4].notes : [];
+    const rhythm = earlier && bar !== bars - 1 ? earlier.rhythm : fresh;
+    const reuse = earlier !== undefined && rhythm === earlier.rhythm && earlier.chord === chord;
+    const scaleHere = pitchesOver(chord);
+    const chordHere = chordPitches(chord);
+    const notes: number[] = [];
     for (let k = 0, n = 0; k < rhythm.length; k += 2, n++) {
       const [s, len] = [rhythm[k], rhythm[k + 1]];
-      let d: number;
+      let midi: number;
       if (reuse) {
-        d = notes[n % notes.length];
+        midi = earlier.notes[n % earlier.notes.length];
       } else if (bar === bars - 1 && k + 2 >= rhythm.length) {
-        d = 7; // resolve to the tonic at the end of the loop
+        midi = nearest(inRange(new Set([0])), prev); // resolve to the tonic at the end of the loop
       } else if (s % 4 === 0) {
         // Strong beats: nearest chord tone in the lead's register.
-        d = triad.map((c) => c + 7).reduce((best, c) => (Math.abs(c - prev) < Math.abs(best - prev) ? c : best));
+        midi = nearest(chordHere, prev);
       } else {
-        d = prev + pick([-2, -1, -1, 1, 1, 2]);
+        // Otherwise a step or two along the scale.
+        const i = scaleHere.indexOf(nearest(scaleHere, prev));
+        midi = scaleHere[Math.max(0, Math.min(scaleHere.length - 1, i + pick([-2, -1, -1, 1, 1, 2])))];
       }
-      d = Math.max(3, Math.min(13, d));
-      if (!reuse) notes.push(d);
-      prev = d;
-      events.push({ at: t0 + s * step, length: len * step * 0.9, midi: degree(d) + 12, tone: lead });
-      events.push({ at: t0 + (s + 3) * step, length: len * step * 0.9, midi: degree(d) + 12, tone: echo });
+      notes.push(midi);
+      prev = midi;
+      events.push({ at: t0 + s * step, length: len * step * 0.9, midi, tone: lead });
+      events.push({ at: t0 + (s + 3) * step, length: len * step * 0.9, midi, tone: echo });
     }
-    if (bar < 2) motif.push({ rhythm, notes });
+    if (!motifs.has(key)) motifs.set(key, { rhythm, notes, chord });
 
     // Drums, with a fill in the last bar.
     for (const [drum, steps] of Object.entries(mood.drums) as [Drum, number[]][]) {

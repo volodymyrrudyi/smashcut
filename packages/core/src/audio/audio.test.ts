@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defineVideo, solid } from "../builders";
-import { ambient, chiptune, groove, grooveBar, makeStereo, mixAudio, modern, music, noteToMidi, pattern, reverb, sfx, stringNote } from "./index";
+import { composeHarmony, defaultSlots } from "./harmony";
+import { ambient, chiptune, chordTones, groove, grooveBar, makeStereo, mixAudio, modern, music, noteToMidi, parseProgression, pattern, reverb, rng, sfx, stringNote } from "./index";
 
 const SR = 8000;
 const peak = (xs: Float32Array) => xs.reduce((m, x) => Math.max(m, Math.abs(x)), 0);
@@ -199,5 +200,74 @@ describe("stringNote", () => {
     expect(sr / lag).toBeGreaterThan(215);
     expect(sr / lag).toBeLessThan(225);
     expect(peak(l.subarray(Math.round(0.45 * sr)))).toBeLessThan(peak(l.subarray(0, 800)) * 0.1);
+  });
+});
+
+describe("harmony", () => {
+  it("reads Roman numerals relative to the key's own scale", () => {
+    const names = (p: string, mode: "major" | "minor") => parseProgression(p, mode).map((c) => chordTones(c, 60));
+    // C major: I IV V = C E G, F A C, G B D.
+    expect(names("I IV V", "major")).toEqual([[60, 64, 67], [65, 69, 72], [67, 71, 74]]);
+    // A borrowed bVII and minor iv in C major: Bb D F, F Ab C.
+    expect(names("bVII-iv", "major")).toEqual([[70, 74, 77], [65, 68, 72]]);
+    // C minor: the natural VI, and an uppercase V gets the raised third.
+    expect(names("VI, V", "minor")).toEqual([[68, 72, 75], [67, 71, 74]]);
+    expect(parseProgression("blues", "major")).toHaveLength(12);
+    expect(() => parseProgression("I IV X", "major")).toThrow(/Unknown chord "X"/);
+  });
+
+  it("gives each chord the seventh that fits the key", () => {
+    const sevenths = parseProgression("I IV V vi bVII", "major").map((c) => c.seventh);
+    expect(sevenths).toEqual([11, 11, 10, 10, 11]);
+  });
+
+  it("varies the progression across seeds, with a different chorus", () => {
+    for (const library of ["pop", "dreamy"] as const) {
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 20; seed++) {
+        const { chords, sections } = composeHarmony({ random: rng(seed * 7349), mode: "major", slots: 8, library });
+        expect(sections).toEqual(["A", "A", "A", "A", "B", "B", "B", "B"]);
+        const names = chords.map((c) => c.name);
+        expect(names.slice(0, 4).join(" ")).not.toBe(names.slice(4).join(" "));
+        seen.add(names.join(" "));
+      }
+      expect(seen.size).toBeGreaterThanOrEqual(15);
+    }
+  });
+
+  it("never ends a loop on the home chord when the top starts on it", () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      for (const slots of [4, 8, 16]) {
+        const { chords } = composeHarmony({ random: rng(seed), mode: "minor", slots, library: "pop" });
+        if (chords[0].root === 0) expect(chords[slots - 1].root).not.toBe(0);
+      }
+    }
+  });
+
+  it("plays a given progression as written, in whole passes", () => {
+    const bar = grooveBar();
+    const render = (progression: string) => groove({ seed: 1, key: "C major", progression, intensity: 0 }).render(SR, 3 * bar)[0];
+    const threeChords = render("I IV V");
+    const oneChord = render("I I I");
+    const slice = (xs: Float32Array, from: number, to: number) => xs.subarray(Math.round(from * bar * SR), Math.round(to * bar * SR));
+    // Same first bar (I), different second bar (IV instead of I).
+    expect(same(slice(threeChords, 0, 0.9), slice(oneChord, 0, 0.9))).toBe(true);
+    expect(same(slice(threeChords, 1.1, 1.9), slice(oneChord, 1.1, 1.9))).toBe(false);
+    // Three chords loop in whole passes: 9 bars (three passes) by default rather than 8.
+    expect(defaultSlots(8, "I IV V", "major")).toBe(9);
+    expect(defaultSlots(8, "blues", "major")).toBe(12);
+  });
+
+  it("accepts a progression in every generator", () => {
+    for (const source of [
+      modern({ seed: 1, progression: "I IV V" }),
+      chiptune({ seed: 1, progression: "i iv v iv" , key: "A minor" }),
+      ambient({ seed: 1, progression: "I bVII IV" }),
+      groove({ seed: 1, progression: "blues" }),
+    ]) {
+      const [l] = source.render(SR, 3);
+      expect(l.every(Number.isFinite)).toBe(true);
+      expect(peak(l)).toBeGreaterThan(0.005);
+    }
   });
 });

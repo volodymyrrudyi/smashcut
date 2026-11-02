@@ -57,7 +57,8 @@ export default defineVideo({
     ]),
   ],
   audio: [
-    music(modern({ seed: 1, mood: "bright", key: "C major" }), { volume: 0.7, fadeOut: 1.2 }),
+    // A new seed for every video: each seed picks its own key, chords, patterns and melody.
+    music(modern({ seed: __SEED__, mood: "bright" }), { volume: 0.7, fadeOut: 1.2 }),
     sfx.swoosh({ at: 2.3, length: 0.8 }),
   ],
 });
@@ -139,7 +140,7 @@ export async function initProject(dir: string): Promise<string[]> {
   }
   const name = path.basename(root);
   const files: Record<string, string> = {
-    "timeline.ts": TIMELINE.replace("__NAME__", name),
+    "timeline.ts": TIMELINE.replace("__NAME__", name).replace("__SEED__", String(1 + Math.floor(Math.random() * 9999))),
     "lib/Title.tsx": TITLE,
     "assets/.gitkeep": "",
     ".gitignore": GITIGNORE,

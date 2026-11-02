@@ -72,7 +72,7 @@ export default defineVideo({
     ]),
   ],
   audio: [
-    music(groove({ seed: 1, key: "D major", intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }),
+    music(groove({ seed: 4821, intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }),
     sfx.swoosh({ at: INTRO - T, length: 0.8 }),
   ],
 });
@@ -121,7 +121,12 @@ All from `@smashcut/core` unless noted.
 | Randomness | `rng(seed)` returns a seeded `() => number` |
 
 **Audio** (`audio: [...]`): `music(groove({ seed, key, intensity, end }), { volume, fadeIn, fadeOut, duck })`.
-Styles: `groove()` (upbeat, the default choice), `ambient()` (quiet bed), `modern()`, `chiptune()`. `intensity`
+Styles: `groove()` (upbeat, the default choice), `ambient()` (quiet bed), `modern()`, `chiptune()`. Give every
+video its own random seed (e.g. `seed: 4821`, not 1 and not one copied from an example) and leave out `key` unless
+asked: the seed picks the key, a verse and chorus chord progression, the strumming / bass patterns and the melody,
+so a fresh seed is a fresh song. Try a few seeds if the first doesn't fit. To choose the chords yourself, pass
+`progression` as Roman numerals, one chord per bar: `"I IV V"`, `"I V vi IV"`, `"i VI III VII"`, `"I bVII IV"`, or
+`"blues"` for a twelve-bar blues. `intensity`
 takes a constant or `[[seconds, 0..1], …]` so the music builds with the story; `end: seconds` ends on a held chord
 (leave ~2.5 s after it). `duck: 0.35` dips the music under effects. Effects: `sfx.swoosh`, `whoosh`, `riser`,
 `tick`, `tap`, `pop`, `click`, `pluck`, `strum`, `thud`, `bell`, `blip`, `chime`, each `({ at, volume })`. Cue
