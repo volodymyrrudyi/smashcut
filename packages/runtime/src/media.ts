@@ -1,4 +1,4 @@
-import { footageSources, type Composition, type MediaInfo, type Stereo } from "@smashcut/core";
+import { fileSources, footageSources, type Composition, type MediaInfo, type Stereo } from "@smashcut/core";
 
 const query = (src: string) => `src=${encodeURIComponent(src)}`;
 
@@ -24,6 +24,37 @@ export async function loadMediaInfo(composition: Composition): Promise<Record<st
   return Object.fromEntries(entries);
 }
 
+function deinterleave(pcm: Float32Array): Stereo {
+  const n = pcm.length >> 1;
+  const channels: Stereo = [new Float32Array(n), new Float32Array(n)];
+  for (let i = 0; i < n; i++) {
+    channels[0][i] = pcm[2 * i];
+    channels[1][i] = pcm[2 * i + 1];
+  }
+  return channels;
+}
+
+/** Decode every sound file in the soundtrack (voiceover takes, `audioFile()`s) into its source, in place. */
+export async function loadSoundFiles(composition: Composition): Promise<void> {
+  const sources = fileSources(composition.audio).filter((s) => !s.decoded);
+  const bySrc = new Map<string, Promise<{ sampleRate: number; channels: Stereo }>>();
+  await Promise.all(
+    sources.map(async (source) => {
+      let job = bySrc.get(source.src);
+      if (!job) {
+        job = (async () => {
+          const res = await fetch(`/__smashcut/media/sound?${query(source.src)}`);
+          if (!res.ok) throw new Error(`Sound ${source.src}: ${(await res.text()) || res.statusText}`);
+          const sampleRate = Number(res.headers.get("X-Sample-Rate"));
+          return { sampleRate, channels: deinterleave(new Float32Array(await res.arrayBuffer())) };
+        })();
+        bySrc.set(source.src, job);
+      }
+      source.decoded = await job;
+    }),
+  );
+}
+
 /** Decode the audio track of every footage file into `media` (in place). Silent files are skipped. */
 export async function loadMediaAudio(media: Record<string, MediaInfo>): Promise<void> {
   await Promise.all(
@@ -32,14 +63,7 @@ export async function loadMediaAudio(media: Record<string, MediaInfo>): Promise<
       const res = await check(await fetch(`/__smashcut/media/audio?${query(src)}`), src);
       if (res.status === 204) return;
       const sampleRate = Number(res.headers.get("X-Sample-Rate"));
-      const pcm = new Float32Array(await res.arrayBuffer());
-      const n = pcm.length >> 1;
-      const channels: Stereo = [new Float32Array(n), new Float32Array(n)];
-      for (let i = 0; i < n; i++) {
-        channels[0][i] = pcm[2 * i];
-        channels[1][i] = pcm[2 * i + 1];
-      }
-      info.audio = { sampleRate, channels };
+      info.audio = { sampleRate, channels: deinterleave(new Float32Array(await res.arrayBuffer())) };
     }),
   );
 }

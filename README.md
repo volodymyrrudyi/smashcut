@@ -106,6 +106,7 @@ Anything that moves takes a function of time, like `kf(...)` here or `(t) => …
 | **3D** | `three()` from `@smashcut/three` | [`three`](examples/three) |
 | **Overlays** | `decor.vignette()`, `watermark()`, `border()`, `grain()` | [`decor`](examples/decor) |
 | **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()`, `sfx.*`, ducking | [`launch`](examples/launch) |
+| **Voiceovers** | `voice("…", { voice: "Sarah" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [`voiceover`](examples/voiceover) |
 
 The full API, with every option, is in the **[guide](docs/guide.md)**.
 
@@ -122,6 +123,7 @@ Run them in a video folder as `npx smashcut <command> .` (or `npm run dev` / `st
 | `sheet <dir>` | A contact sheet: 12 labelled frames in one PNG (`--count N`, `--every 0.5`) |
 | `inspect <dir>` | Print every clip, caption and sound with its start and end (`--json` for scripts) |
 | `audio <dir>` | Export just the soundtrack as WAV |
+| `voiceover <dir>` | Generate missing voiceover lines into `voiceovers/` (`--prune` deletes unused takes); `voices` lists voices |
 
 ## Working with coding agents
 
@@ -152,6 +154,7 @@ Each folder in [`examples/`](examples) is a complete video. Copy the closest one
 | [`motion`](examples/motion) | Every enter/exit effect and transition, easings, `spring`, seeded `rng` particles, `chiptune()` and a hand-written `pattern()` sting |
 | [`frames`](examples/frames) | Every `framed()` chrome, phone viewports, `pip()`, a screenshot with a click call-out and `zoomTo()` |
 | [`subtitles`](examples/subtitles) | SRT and VTT in all four presets, word timing, custom styles, an `ambient()` bed that ducks |
+| [`voiceover`](examples/voiceover) | ElevenLabs narration driving the cuts, titles, effects and highlighted captions. Needs `ELEVENLABS_API_KEY` |
 | [`typing`](examples/typing) | A form typed on four keyboard switches with a corrected typo, then a `camera()` that follows the fields |
 | [`footage`](examples/footage) | A Playwright screen recording cut into scenes, one at 2× speed, a looping picture-in-picture |
 | [`decor`](examples/decor) | `vignette`, `watermark`, `border` and `grain`, alone and together |

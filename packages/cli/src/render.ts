@@ -6,6 +6,7 @@ import type { Browser, Page } from "playwright";
 import type { TimelineSummary } from "@smashcut/core";
 import { captureFrame, launchBrowser, openVideo, type RenderPage } from "./browser";
 import { startServer } from "./server";
+import { generateMissing, removeTakeFiles, unusedTakeFiles } from "./voice/takes";
 
 export interface StillOptions {
   frame: number;
@@ -31,16 +32,25 @@ export interface RenderOptions {
 async function withVideo<T>(
   projectDir: string,
   pageOpts: { verbose?: boolean; fps?: number; scale?: number },
-  fn: (ctx: { browser: Browser; url: string; first: RenderPage }) => Promise<T>,
-  { footage = true } = {},
+  fn: (ctx: { browser: Browser; url: string; first: RenderPage; root: string }) => Promise<T>,
+  { footage = true, voices = true } = {},
 ): Promise<T> {
-  const { server, url, media } = await startServer(projectDir, { mode: "render" });
+  const { server, url, media, root, refreshVoices } = await startServer(projectDir, { mode: "render" });
   const browser = await launchBrowser();
   try {
-    const first = await openVideo(browser, url, pageOpts);
+    let first = await openVideo(browser, url, pageOpts);
+    // Voiceover lines change the timeline's timing: generate the missing ones, then load the video again.
+    if (voices && first.meta.voices.missing.length) {
+      await generateMissing(root, first.meta.voices.missing);
+      refreshVoices();
+      await first.page.close();
+      first = await openVideo(browser, url, pageOpts);
+      const left = first.meta.voices.missing.length;
+      if (left) throw new Error(`${left} voiceover line(s) are still missing after generating them`);
+    }
     // Extract footage frames up front: inside a frame capture it would count against the delayRender timeout.
     if (footage) await Promise.all(first.meta.footage.map((src) => media.frames(src, first.meta.fps)));
-    return await fn({ browser, url, first });
+    return await fn({ browser, url, first, root });
   } finally {
     await browser.close();
     await server.close();
@@ -58,9 +68,46 @@ export async function renderStill(projectDir: string, opts: StillOptions): Promi
   });
 }
 
-/** The resolved timeline: every clip, caption and sound with its times. Nothing is rendered. */
-export async function inspectVideo(projectDir: string, opts: { fps?: number; verbose?: boolean } = {}): Promise<TimelineSummary> {
-  return withVideo(projectDir, opts, ({ first }) => first.page.evaluate(() => window.__smashcut!.inspect()), { footage: false });
+/**
+ * The resolved timeline: every clip, caption and sound with its times. Nothing is rendered, and voiceover lines
+ * aren't generated (missing ones are listed in `pendingVoices`, with estimated timings in the timeline).
+ */
+export async function inspectVideo(
+  projectDir: string,
+  opts: { fps?: number; verbose?: boolean } = {},
+): Promise<TimelineSummary & { pendingVoices: number }> {
+  return withVideo(
+    projectDir,
+    opts,
+    async ({ first }) => ({
+      ...(await first.page.evaluate(() => window.__smashcut!.inspect())),
+      pendingVoices: first.meta.voices.missing.length,
+    }),
+    { footage: false, voices: false },
+  );
+}
+
+export interface VoiceoverReport {
+  generated: number;
+  lines: number;
+  /** Files in voiceovers/ that no line uses any more. */
+  unused: string[];
+}
+
+/** Generate every missing voiceover line; with `prune`, delete takes the timeline no longer uses. */
+export async function voiceover(projectDir: string, opts: { prune?: boolean; verbose?: boolean } = {}): Promise<VoiceoverReport> {
+  return withVideo(
+    projectDir,
+    opts,
+    async ({ first, root }) => {
+      const { all, missing } = first.meta.voices;
+      const generated = await generateMissing(root, missing);
+      const unused = await unusedTakeFiles(root, all);
+      if (opts.prune) await removeTakeFiles(root, unused);
+      return { generated: generated.length, lines: all.length, unused };
+    },
+    { footage: false, voices: false },
+  );
 }
 
 export interface SheetOptions {

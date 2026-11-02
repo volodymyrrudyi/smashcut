@@ -1,0 +1,5 @@
+# Generated voiceover audio stays out of git: `smashcut voiceover .` (or dev / render) makes it again,
+# which needs ELEVENLABS_API_KEY. A JSON take without its audio is regenerated too.
+voiceovers/*.mp3
+voiceovers/*.wav
+.env

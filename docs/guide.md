@@ -4,6 +4,7 @@ The full reference. For an overview and quick start, see the [README](../README.
 
 - [Writing a timeline](#writing-a-timeline)
 - [Audio](#audio)
+- [Voiceovers](#voiceovers)
 - [The dev preview](#the-dev-preview)
 - [Videos outside a project](#videos-outside-a-project)
 - [How rendering works](#how-rendering-works)
@@ -82,8 +83,9 @@ export default defineVideo({
 
 ## Audio
 
-All sound is synthesised in code. There are no samples and no licensing, and every seed renders the same output
-every time. There are four styles:
+Music and effects are synthesised in code. There are no samples and no licensing, and every seed renders the same
+output every time. (Spoken narration comes from a text-to-speech provider: see [Voiceovers](#voiceovers). Your own
+files play with `sample(asset("take.wav"), { at })`.) There are four music styles:
 - `groove()`: upbeat and warm, with strummed guitar, a bouncing bass and kick / clap / shaker. No bells or chimes.
   The default choice for product videos.
 - `ambient()`: a quiet background bed (slow pads, sub bass, a rare glassy note).
@@ -148,6 +150,59 @@ defineVideo({
   `withReverb`, `pattern()`.
 - `smashcut audio <dir>` exports the mixed soundtrack as WAV. `smashcut render` muxes it into the MP4 (AAC), and `smashcut dev`
   plays it in sync.
+
+## Voiceovers
+
+`voice()` adds a spoken line from a text-to-speech provider. ElevenLabs is the first (and default) provider.
+
+```ts
+import { ambient, defineVideo, music, sfx, subtitles, text, voice } from "@smashcut/core";
+
+const intro = voice("Meet smashcut. Videos you write in code.", { at: 0.5, voice: "Sarah" });
+const outro = voice("Try it today.", { at: intro.end + 1, voice: "Sarah", settings: { speed: 1.05 } });
+
+export default defineVideo({
+  size: [1920, 1080],
+  duration: outro.end + 1.5,
+  layers: [
+    // ...
+    text("in code", { at: intro.word("code").start }),
+    subtitles([...intro.cues, ...outro.cues], { preset: "highlight" }),
+  ],
+  audio: [intro, outro, sfx.tick({ at: intro.word("smashcut").start }), music(ambient(), { duck: 0.6 })],
+});
+```
+
+- **Generating.** Each line is generated once, the first time `smashcut dev`, `render`, `still`, `sheet` or `audio`
+  sees it, and stored in `voiceovers/` next to `timeline.ts`: the audio plus a JSON file with the request and when
+  each word is spoken. **Commit `voiceovers/`.** Renders then work offline and in CI with no API key, a line is
+  only paid for when it changes, and everyone hears the same take. Changing the text, voice, model, provider or
+  settings makes a new take. `smashcut voiceover <dir>` generates missing lines without rendering, and lists the
+  takes nothing uses any more; `--prune` deletes them.
+- **API key.** Set `ELEVENLABS_API_KEY` in the environment, or put `ELEVENLABS_API_KEY=...` in the video folder's
+  `.env` (new folders ignore `.env` in git). `smashcut voices <dir>` lists the voices on your account.
+- **Before a line is generated** it is silent and its timings are estimated, so the preview still works. `smashcut
+  dev` generates it in the background and reloads when it lands; `smashcut inspect` never generates and says
+  how many lines are pending.
+- **Options:** `voice` (a voice name such as "Sarah", or a voice id; required), `provider` (default
+  `"elevenlabs"`), `model` (ElevenLabs default `eleven_multilingual_v2`), `settings` (passed to the provider:
+  for ElevenLabs `stability`, `similarity_boost`, `style`, `speed`, `use_speaker_boost` and `clone_strength` go in
+  its voice settings, anything else such as `seed` or `language_code` goes in the request), plus the usual sound
+  options `at`, `volume`, `fadeIn`, `fadeOut`, `duration` and `label`.
+- **Timing for the rest of the video.** A line is a sound clip with extra fields:
+  - `.end` is `at + duration`, for starting the next line or cutting the scene.
+  - `.words` lists every spoken word with timeline seconds.
+  - `.word("code", nth?)` is one word (ignoring case and punctuation), for cueing a cut, an effect or a caption
+    on the beat.
+  - `.cues` are captions split at sentences, pauses and ~42 characters, in timeline seconds. Put `subtitles(...)`
+    at the top level (not inside a scene that starts later), or set its `from` to match.
+- **Music under the voice.** `music(..., { duck: 0.6 })` dips the music while the voice speaks.
+- **Example.** `examples/voiceover` builds every scene, title, effect and caption from three lines. Its
+  `.gitignore` keeps the generated audio out of the repo, so it needs a key the first time you run it.
+- **Providers.** Takes record the provider, the resolved voice id and the model, so you can always tell where a
+  file came from. Switching provider needs a voice from the new provider, and makes new takes. Adding one
+  means implementing `VoiceProvider` in `packages/cli/src/voice/` (synthesise text into audio and word timings,
+  list voices) and registering it in `PROVIDERS`.
 
 ## The dev preview
 

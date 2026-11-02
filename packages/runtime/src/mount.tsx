@@ -1,7 +1,18 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { describeTimeline, mixAudio, resolveComposition, type Composition, type ResolvedComposition, type Stereo, type TimelineSummary } from "@smashcut/core";
-import { loadMediaAudio, loadMediaInfo } from "./media";
+import {
+  describeTimeline,
+  missingVoices,
+  mixAudio,
+  resolveComposition,
+  voiceRequests,
+  type Composition,
+  type ResolvedComposition,
+  type Stereo,
+  type TimelineSummary,
+  type VoiceRequest,
+} from "@smashcut/core";
+import { loadMediaAudio, loadMediaInfo, loadSoundFiles } from "./media";
 import { Preview } from "./Preview";
 import { Stage } from "./Stage";
 import { frameStore } from "./store";
@@ -16,6 +27,8 @@ export interface VideoMeta {
   footage: string[];
   /** Target LUFS for the exported soundtrack, or null to leave it as mixed. */
   loudness: number | null;
+  /** Voiceover lines in the timeline: all of them, and those with no generated take yet. */
+  voices: { all: VoiceRequest[]; missing: VoiceRequest[] };
 }
 
 /** Bridge the Node-side renderer drives through Playwright. */
@@ -73,6 +86,38 @@ function installDeterminism(fps: number) {
   });
 }
 
+/** A small status line over the dev preview (voiceover generation). */
+function showStatus(text: string, tone: "info" | "error") {
+  let el = document.getElementById("smashcut-status");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "smashcut-status";
+    document.body.append(el);
+  }
+  el.textContent = text;
+  el.style.cssText =
+    "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:1000;max-width:80vw;padding:8px 14px;" +
+    "border-radius:8px;font:13px/1.4 system-ui,sans-serif;box-shadow:0 4px 16px #0006;white-space:pre-wrap;" +
+    (tone === "error" ? "background:#7f1d1d;color:#fecaca" : "background:#1e293b;color:#e2e8f0");
+}
+
+/** Ask the dev server for missing voiceover lines; the page reloads once they're stored. */
+async function generateVoices(requests: VoiceRequest[]) {
+  const n = requests.length;
+  showStatus(`Generating ${n} voiceover line${n === 1 ? "" : "s"}… (timings are estimated until then)`, "info");
+  try {
+    const res = await fetch("/__smashcut/voice/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requests }),
+    });
+    const body = (await res.json()) as { error?: string };
+    if (!res.ok) throw new Error(body.error ?? res.statusText);
+  } catch (err) {
+    showStatus(`Voiceover not generated: ${err instanceof Error ? err.message : err}\nThe voice lines are silent, with estimated timings.`, "error");
+  }
+}
+
 function showError(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
   window.__smashcut_error = message;
@@ -109,9 +154,11 @@ export async function mount(composition: Composition, el = document.getElementBy
   const root = createRoot(el);
   // Footage audio is only decoded when the soundtrack is needed, not by every render chunk.
   const audio = async (sampleRate?: number) => {
-    await loadMediaAudio(composition.media!);
+    await Promise.all([loadMediaAudio(composition.media!), loadSoundFiles(composition)]);
     return mixAudio(composition, sampleRate);
   };
+  const missing = missingVoices(composition.audio);
+  if (!renderMode && missing.length) void generateVoices(missing);
   flushSync(() => root.render(renderMode ? <Stage comp={comp} /> : <Preview comp={comp} composition={composition} audio={audio} />));
 
   window.__smashcut = {
@@ -123,6 +170,7 @@ export async function mount(composition: Composition, el = document.getElementBy
       durationInFrames: comp.durationInFrames,
       footage: Object.keys(comp.media),
       loudness: composition.loudness === false || composition.loudness === undefined ? null : composition.loudness,
+      voices: { all: voiceRequests(composition.audio), missing },
     }),
     async seek(frame) {
       flushSync(() => frameStore.set(frame));

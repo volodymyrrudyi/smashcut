@@ -1,0 +1,48 @@
+{
+  "provider": "elevenlabs",
+  "voice": "Sarah",
+  "text": "Write the script. Render the video.",
+  "settings": {
+    "stability": 0.5
+  },
+  "audio": "write-the-script-render-the-video-ed98a3baeb.mp3",
+  "duration": 2.229,
+  "words": [
+    {
+      "text": "Write",
+      "start": 0,
+      "end": 0.267
+    },
+    {
+      "text": "the",
+      "start": 0.29,
+      "end": 0.36
+    },
+    {
+      "text": "script.",
+      "start": 0.406,
+      "end": 0.894
+    },
+    {
+      "text": "Render",
+      "start": 1.103,
+      "end": 1.382
+    },
+    {
+      "text": "the",
+      "start": 1.428,
+      "end": 1.498
+    },
+    {
+      "text": "video.",
+      "start": 1.533,
+      "end": 2.229
+    }
+  ],
+  "generated": {
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "model": "eleven_multilingual_v2",
+    "outputFormat": "mp3_44100_128",
+    "at": "2026-11-02T15:08:29.260Z"
+  }
+}

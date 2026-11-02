@@ -127,6 +127,13 @@ takes a constant or `[[seconds, 0..1], …]` so the music builds with the story;
 `tick`, `tap`, `pop`, `click`, `pluck`, `strum`, `thud`, `bell`, `blip`, `chime`, each `({ at, volume })`. Cue
 them from the same constants as the scenes.
 
+**Voiceover**: `const vo = voice("Meet smashcut.", { at: 1, voice: "Sarah" })` (ElevenLabs; needs
+`ELEVENLABS_API_KEY` in the environment or the folder's `.env`), then put `vo` in `audio`. Lay the video out from
+its timing: `vo.end` for the next line or scene, `vo.word("smashcut").start` to cue a cut or effect,
+`subtitles(vo.cues)` at the top level for captions. Duck music under it with `duck: 0.6`. Lines are generated once
+into `voiceovers/` (commit it); until then they're silent with estimated timing, and `inspect` says how many are
+pending. Don't regenerate takes needlessly: any change to text, voice or settings costs a new generation.
+
 ## Rules that keep renders correct
 
 Frames are rendered out of order and in parallel, so every frame must be a pure function of time.
