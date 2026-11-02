@@ -84,7 +84,7 @@ export default defineVideo({
     ]),
   ],
   audio: [
-    music(groove({ seed: 4821, intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }),
+    music(groove({ seed: 4821, intensity: 0.5 }), { fadeOut: 1.5, duck: 0.35 }), // seed: any number; each is a different song
     sfx.swoosh({ at: INTRO - T, length: 0.8 }),
   ],
 });
