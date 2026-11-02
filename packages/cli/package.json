@@ -1,6 +1,6 @@
 {
   "name": "smashcut",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Videos as TypeScript timelines: preview live and render frame-exact MP4s.",
   "keywords": [
     "video",
@@ -35,8 +35,8 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@smashcut/core": "0.2.0",
-    "@smashcut/runtime": "0.2.0",
+    "@smashcut/core": "0.3.0",
+    "@smashcut/runtime": "0.3.0",
     "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "vite": "^8.3.5"
