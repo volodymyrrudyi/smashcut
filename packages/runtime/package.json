@@ -1,6 +1,6 @@
 {
   "name": "@smashcut/runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Browser runtime for smashcut: renders a timeline frame by frame with React.",
   "keywords": [
     "video",
@@ -32,7 +32,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@smashcut/core": "0.1.0",
+    "@smashcut/core": "0.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   }

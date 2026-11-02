@@ -1,6 +1,6 @@
 {
   "name": "@smashcut/three",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "three.js scenes as smashcut clips.",
   "keywords": [
     "video",
@@ -32,8 +32,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@smashcut/core": "0.1.0",
-    "@smashcut/runtime": "0.1.0",
+    "@smashcut/core": "0.2.0",
+    "@smashcut/runtime": "0.2.0",
     "@types/three": "0.170.0",
     "react": "^19.3.1",
     "three": "0.170.0"
