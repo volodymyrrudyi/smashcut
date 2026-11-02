@@ -42,6 +42,8 @@ jobs:
         run: |
           for dir in examples/*/; do
             npm run smashcut --silent -- inspect "$dir" > /dev/null
+            # The voiceover example's audio isn't committed and CI has no ElevenLabs key: inspect only.
+            [ "$dir" = "examples/voiceover/" ] && continue
             npm run smashcut --silent -- sheet "$dir" --count 6
           done
       - name: Render one example to MP4 (video, audio, footage)
