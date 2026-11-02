@@ -106,7 +106,7 @@ Anything that moves takes a function of time, like `kf(...)` here or `(t) => …
 | **3D** | `three()` from `@smashcut/three` | [`three`](examples/three) |
 | **Overlays** | `decor.vignette()`, `watermark()`, `border()`, `grain()` | [`decor`](examples/decor) |
 | **Music and sound effects** | `groove()`, `ambient()`, `modern()`, `chiptune()`, `sfx.*`, ducking | [`launch`](examples/launch) |
-| **Voiceovers** | `voice("…", { voice: "Rachel" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [`voiceover`](examples/voiceover) |
+| **Voiceovers** | `voice("…", { voice: "Sarah" })` via ElevenLabs, stored in `voiceovers/`, word timings for cues and captions | [`voiceover`](examples/voiceover) |
 
 The full API, with every option, is in the **[guide](docs/guide.md)**.
 

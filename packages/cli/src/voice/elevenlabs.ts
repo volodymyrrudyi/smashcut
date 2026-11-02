@@ -47,6 +47,14 @@ export function matchVoice(voices: VoiceInfo[], wanted: string): VoiceInfo | und
   );
 }
 
+/** "No such voice", listing what the account has (short names) so the fix is one edit away. */
+export function noVoiceMessage(wanted: string, voices: VoiceInfo[]): string {
+  const names = [...new Set(voices.map((v) => v.name.split(/\s+[-–(]\s*/)[0]))].sort();
+  const list = names.length > 30 ? `${names.slice(0, 30).join(", ")}, …` : names.join(", ");
+  return `ElevenLabs has no voice named "${wanted}" on this account. ${names.length ? `Available: ${list}. ` : ""}` +
+    "Use one of those names or a voice id (`smashcut voices <dir>` lists ids).";
+}
+
 async function call(path: string, key: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(API + path, { ...init, headers: { "xi-api-key": key, ...init.headers } });
   if (!res.ok) {
@@ -81,8 +89,9 @@ export const elevenlabs: VoiceProvider = {
   async synthesize(req: VoiceRequest, key) {
     let voiceId = req.voice;
     if (!looksLikeId(req.voice)) {
-      const found = matchVoice(await this.voices(key), req.voice);
-      if (!found) throw new Error(`ElevenLabs has no voice named "${req.voice}" on this account (run \`smashcut voices\`)`);
+      const voices = await this.voices(key);
+      const found = matchVoice(voices, req.voice);
+      if (!found) throw new Error(noVoiceMessage(req.voice, voices));
       voiceId = found.id;
     }
     const model = req.model ?? ELEVENLABS_DEFAULT_MODEL;

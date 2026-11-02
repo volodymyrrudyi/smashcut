@@ -1,0 +1,78 @@
+{
+  "provider": "elevenlabs",
+  "voice": "Sarah",
+  "text": "Every word is timed, so cuts and captions land on the beat.",
+  "settings": {
+    "stability": 0.5
+  },
+  "audio": "every-word-is-timed-so-cuts-2e5b8ebddf.mp3",
+  "duration": 3.483,
+  "words": [
+    {
+      "text": "Every",
+      "start": 0,
+      "end": 0.313
+    },
+    {
+      "text": "word",
+      "start": 0.36,
+      "end": 0.592
+    },
+    {
+      "text": "is",
+      "start": 0.65,
+      "end": 0.731
+    },
+    {
+      "text": "timed,",
+      "start": 0.789,
+      "end": 1.219
+    },
+    {
+      "text": "so",
+      "start": 1.242,
+      "end": 1.37
+    },
+    {
+      "text": "cuts",
+      "start": 1.44,
+      "end": 1.683
+    },
+    {
+      "text": "and",
+      "start": 1.718,
+      "end": 1.8
+    },
+    {
+      "text": "captions",
+      "start": 1.858,
+      "end": 2.31
+    },
+    {
+      "text": "land",
+      "start": 2.38,
+      "end": 2.635
+    },
+    {
+      "text": "on",
+      "start": 2.705,
+      "end": 2.775
+    },
+    {
+      "text": "the",
+      "start": 2.81,
+      "end": 2.879
+    },
+    {
+      "text": "beat.",
+      "start": 2.914,
+      "end": 3.483
+    }
+  ],
+  "generated": {
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "model": "eleven_multilingual_v2",
+    "outputFormat": "mp3_44100_128",
+    "at": "2026-11-02T15:08:28.996Z"
+  }
+}

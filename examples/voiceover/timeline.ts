@@ -3,7 +3,7 @@ import { ambient, defineVideo, group, music, sfx, solid, subtitles, text, voice,
 // Voiceover: the narration drives the timing of everything else.
 // Needs ELEVENLABS_API_KEY (in the environment or in this folder's .env). Each line is generated once into
 // voiceovers/; until then it's silent and its timing is estimated. `smashcut voices .` lists the voices.
-const VOICE: VoiceOptions = { voice: "Rachel", settings: { stability: 0.5 } };
+const VOICE: VoiceOptions = { voice: "Sarah", settings: { stability: 0.5 } };
 const GAP = 0.6;
 
 const l1 = voice("Meet smashcut. Videos you write in code.", { ...VOICE, at: 0.6 });

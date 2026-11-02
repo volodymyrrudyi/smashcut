@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { alignmentToWords, matchVoice } from "./elevenlabs";
+import { alignmentToWords, matchVoice, noVoiceMessage } from "./elevenlabs";
 import { writeFile } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { crossSite } from "../server";
@@ -33,6 +33,10 @@ describe("matchVoice", () => {
     expect(matchVoice(voices, "rachel")?.id).toBe("a".repeat(20));
     expect(matchVoice(voices, "Brian")?.id).toBe("b".repeat(20));
     expect(matchVoice(voices, "Adam")).toBeUndefined();
+  });
+
+  it("lists the account's voices when one is missing", () => {
+    expect(noVoiceMessage("Adam", voices)).toMatch(/no voice named "Adam".*Available: Brian, Rachel\./);
   });
 });
 

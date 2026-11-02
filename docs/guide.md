@@ -158,8 +158,8 @@ defineVideo({
 ```ts
 import { ambient, defineVideo, music, sfx, subtitles, text, voice } from "@smashcut/core";
 
-const intro = voice("Meet smashcut. Videos you write in code.", { at: 0.5, voice: "Rachel" });
-const outro = voice("Try it today.", { at: intro.end + 1, voice: "Rachel", settings: { speed: 1.05 } });
+const intro = voice("Meet smashcut. Videos you write in code.", { at: 0.5, voice: "Sarah" });
+const outro = voice("Try it today.", { at: intro.end + 1, voice: "Sarah", settings: { speed: 1.05 } });
 
 export default defineVideo({
   size: [1920, 1080],
@@ -184,7 +184,7 @@ export default defineVideo({
 - **Before a line is generated** it is silent and its timings are estimated, so the preview still works. `smashcut
   dev` generates it in the background and reloads when it lands; `smashcut inspect` never generates and says
   how many lines are pending.
-- **Options:** `voice` (a voice name such as "Rachel", or a voice id; required), `provider` (default
+- **Options:** `voice` (a voice name such as "Sarah", or a voice id; required), `provider` (default
   `"elevenlabs"`), `model` (ElevenLabs default `eleven_multilingual_v2`), `settings` (passed to the provider:
   for ElevenLabs `stability`, `similarity_boost`, `style`, `speed`, `use_speaker_boost` and `clone_strength` go in
   its voice settings, anything else such as `seed` or `language_code` goes in the request), plus the usual sound

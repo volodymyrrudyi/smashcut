@@ -10,7 +10,7 @@ export const DEFAULT_VOICE_PROVIDER = "elevenlabs";
 export interface VoiceRequest {
   /** Text-to-speech provider, e.g. "elevenlabs". */
   provider: string;
-  /** The provider's voice: a name ("Rachel") or an id. */
+  /** The provider's voice: a name ("Sarah") or an id. */
   voice: string;
   text: string;
   /** Provider model; omitted = the provider's default. */
@@ -58,7 +58,7 @@ export function setVoiceTakes(list: readonly VoiceTake[]): void {
 export const findVoiceTake = (req: VoiceRequest): VoiceTake | undefined => takes.get(voiceKey(req));
 
 export interface VoiceOptions extends SoundOptions {
-  /** The provider's voice: a name ("Rachel") or an id. */
+  /** The provider's voice: a name ("Sarah") or an id. */
   voice: string;
   /** Default "elevenlabs". */
   provider?: string;
@@ -141,7 +141,7 @@ export function wordsToCues(words: readonly Word[]): Cue[] {
 
 /**
  * A voiceover line, spoken by a text-to-speech provider (ElevenLabs by default):
- * `voice("Meet smashcut.", { at: 1, voice: "Rachel" })`.
+ * `voice("Meet smashcut.", { at: 1, voice: "Sarah" })`.
  *
  * The CLI generates each line once and stores it in `voiceovers/` (commit that folder). Until then the clip is
  * silent and its timings are estimated. `.end`, `.words`, `.word("smashcut")` and `.cues` give the spoken timing
@@ -150,7 +150,7 @@ export function wordsToCues(words: readonly Word[]): Cue[] {
 export function voice(text: string, opts: VoiceOptions): VoiceClip {
   const { voice: voiceName, provider = DEFAULT_VOICE_PROVIDER, model, settings, ...soundOpts } = opts;
   if (!text.trim()) throw new Error("voice(): text is empty");
-  if (!voiceName) throw new Error(`voice("${text.slice(0, 30)}"): pick a voice, e.g. { voice: "Rachel" }`);
+  if (!voiceName) throw new Error(`voice("${text.slice(0, 30)}"): pick a voice, e.g. { voice: "Sarah" }`);
   const request: VoiceRequest = { provider, voice: voiceName, text, ...(model && { model }), ...(settings && { settings }) };
   const take = findVoiceTake(request);
   const spoken = take ?? estimateTake(text);
