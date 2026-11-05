@@ -3,6 +3,7 @@ import {
   defineVideo,
   fade,
   footageFrame,
+  footageRequests,
   footageSources,
   footageTime,
   group,
@@ -100,5 +101,33 @@ describe("footage audio", () => {
     const silent = { ...file(), audio: undefined };
     const comp = defineVideo({ size: [1, 1], layers: [video("/a.mp4", { muted: true }), video("/b.mp4")] });
     expect(mixAudio({ ...comp, media: { "/a.mp4": file(0.4), "/b.mp4": silent } }, SR)).toBeNull();
+  });
+});
+
+
+describe("footage preparation requests", () => {
+  it("respects trims, speed, nested offsets and ancestor duration", () => {
+    const comp = resolveComposition({
+      ...defineVideo({ size: [64, 64], fps: 10, duration: 3, layers: [
+        group([video("/a.mp4", { at: 0.2, trim: [1, 3], playbackRate: 2, duration: 3 })], { at: 0.5, duration: 1 }),
+      ] }), media: { "/a.mp4": file() },
+    });
+    expect(footageRequests(comp, [[0, 29]])).toEqual([{ src: "/a.mp4", frames: [10, 12, 14, 16, 18, 20, 22, 24] }]);
+    expect(footageRequests(comp, [[8, 9], [13, 13]])).toEqual([{ src: "/a.mp4", frames: [12, 14, 22] }]);
+    expect(footageRequests(comp, [[15, 29]])).toEqual([]);
+  });
+  it("deduplicates loops, overlapping ranges and last-frame holds", () => {
+    const comp = resolveComposition({
+      ...defineVideo({ size: [64, 64], fps: 10, duration: 2, layers: [
+        video("/a.mp4", { trim: [1, 1.5], loop: true, duration: 2 }),
+        video("/a.mp4", { trim: [1, 1.5], duration: 2 }),
+      ] }), media: { "/a.mp4": file() },
+    });
+    expect(footageRequests(comp, [[0, 19], [5, 15]])).toEqual([{ src: "/a.mp4", frames: [10, 11, 12, 13, 14] }]);
+  });
+  it("rejects invalid ranges even when there is no footage", () => {
+    const comp = resolveComposition(defineVideo({ size: [64, 64], duration: 1, layers: [] }));
+    expect(() => footageRequests(comp, [[NaN, 2]])).toThrow("ranges");
+    expect(() => footageRequests(comp, [[3, 2]])).toThrow("ranges");
   });
 });

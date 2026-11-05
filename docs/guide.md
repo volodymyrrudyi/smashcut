@@ -250,10 +250,28 @@ smashcut dev ~/videos/launch
   frame ranges, and `clipVisual` computes per-frame transforms, effects and transitions.
 - `@smashcut/runtime`: a React renderer in the browser. It exposes `window.__smashcut.seek(frame)`, which renders a
   frame and resolves once images, fonts and `delayRender` handles are ready. Render mode makes
-  `Date.now`, `performance.now` and `Math.random` deterministic per frame.
+  `Date.now`, `performance.now` and `Math.random` deterministic per frame. The shims are installed before
+  `timeline.ts` loads. Use explicit `rng(seed)` generators for persistent initial state (including React
+  state, memoized particles and three.js setup): their seeds must not depend on the frame where a clip
+  first mounts. `Math.random()` is supported for pure frame calculations, not persistent initialization.
+  Components must calculate poses from the supplied time rather than accumulate state across frames.
 - `smashcut` (the CLI): serves the project through Vite and drives headless Chromium (Playwright). It screenshots
   each frame and pipes the PNGs into ffmpeg (H.264). The frame range is split into chunks rendered by
   parallel pages, and the chunks are then concatenated.
 - Footage is never seeked in a `<video>` element. The CLI probes each file with ffprobe, extracts its frames as
-  JPEGs at the render frame rate into `.smashcut/footage/` (once per file and fps), and decodes its audio to PCM. The
-  runtime shows the cached frame for each timeline frame, so footage is frame-exact and safe to render in parallel.
+  JPEGs at the render frame rate into `.smashcut/footage/`, and decodes its audio to PCM. Stills, sheets and frame
+  ranges prepare only the source indices they need, including trims, looping, speed changes and parent cutoffs.
+  Preview playback caches one-second batches on demand. The cache stores frames at source resolution so camera
+  moves and `--scale` keep their detail. The runtime shows the cached frame for each timeline frame, so footage
+  stays frame-exact and safe to render in parallel. Metadata-only inspection does not decode footage frames.
+- Soundtrack export mixes once in the browser, transfers at most 32,768 stereo samples per chunk, writes PCM
+  incrementally to WAV, and releases the browser mix before loudness normalization. Synthesis and decoded source
+  audio still use buffers proportional to duration. Measurements and reproduction commands are in
+  [the performance notes](performance/README.md).
+
+### Media cache maintenance
+
+`smashcut cache <dir>` reports generated-media cache entries and bytes; add `--json` for a machine-readable report.
+`smashcut cache <dir> --prune` removes entries for replaced or deleted source files, obsolete cache formats, and
+interrupted extraction files older than 24 hours. Fresh entries and recent temporary jobs are kept. Assets,
+voiceover takes and render output are never pruned. Stop previews and renders before pruning their project cache.

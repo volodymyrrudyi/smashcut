@@ -38,6 +38,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npx playwright install --with-deps chromium-headless-shell
+      - name: Verify render correctness and failure recovery
+        run: npm run test:integration
       - name: Inspect each example and render a contact sheet of it
         run: |
           for dir in examples/*/; do

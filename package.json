@@ -8,7 +8,9 @@
   "scripts": {
     "smashcut": "node packages/cli/bin/smashcut.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "node scripts/test-integration.mjs",
+    "profile:audio": "node --import tsx scripts/profile-audio.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

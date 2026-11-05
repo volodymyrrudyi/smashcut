@@ -3,7 +3,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { initProject } from "./init";
 import { FROM_NPM } from "./paths";
-import { MAX_FPS } from "./media";
+import { inspectMediaCache, MAX_FPS } from "./media";
 import { formatTimeline } from "@smashcut/core";
 import { inspectVideo, renderAudio, renderSheet, renderStill, renderVideo, voiceover } from "./render";
 import { startServer } from "./server";
@@ -19,6 +19,7 @@ const USAGE = `Usage:
   smashcut inspect <dir> [--json]                   List every clip, caption and sound with its times
   smashcut render <dir> [-o out.mp4] [--concurrency N] [--from N] [--to N] [--crf 18]
                                                 Render the video to MP4
+  smashcut cache <dir> [--prune] [--json]           Show cache size; --prune removes stale generated media
   smashcut audio <dir> [-o out.wav]                 Export just the soundtrack
   smashcut voiceover <dir> [--prune]                Generate missing voiceover lines into voiceovers/;
                                                 --prune deletes takes the timeline no longer uses
@@ -83,10 +84,18 @@ async function main(argv: string[]) {
   const fps = int(values.fps, "fps");
   if (fps !== undefined && (fps < 1 || fps > MAX_FPS)) throw new Error(`--fps must be between 1 and ${MAX_FPS}`);
   const scale = values.scale === undefined ? undefined : Number(values.scale);
-  if (scale !== undefined && !(scale > 0)) throw new Error(`--scale must be a positive number, got "${values.scale}"`);
+  if (scale !== undefined && (!Number.isFinite(scale) || scale <= 0)) throw new Error(`--scale must be a positive number, got "${values.scale}"`);
   const suffix = (fps ? `-${fps}fps` : "") + (scale && scale !== 1 ? `-${scale}x` : "");
 
   switch (command) {
+    case "cache": {
+      const report = await inspectMediaCache(dir, values.prune);
+      const mib = (bytes: number) => (bytes / 1024 ** 2).toFixed(1);
+      console.log(values.json ? JSON.stringify(report, null, 2) :
+        `${report.entries} cache entries (${mib(report.bytes)} MiB), ${report.staleEntries} stale (${mib(report.staleBytes)} MiB)` +
+        (values.prune ? `; removed ${report.removedEntries} (${mib(report.removedBytes)} MiB)` : ". Use --prune to remove stale entries."));
+      return;
+    }
     case "init": {
       const files = await initProject(dir);
       console.log(`Created ${path.resolve(dir)}:\n${files.map((f) => `  ${f}`).join("\n")}\n\nNext: ${FROM_NPM ? `cd ${dir} && npm install && npm run dev` : `smashcut dev ${dir}`}`);
@@ -129,7 +138,7 @@ async function main(argv: string[]) {
     }
     case "audio": {
       const output = values.output ?? path.join(dir, "out", `${name}.wav`);
-      const written = await renderAudio(dir, { frame: 0, output, verbose: values.verbose });
+      const written = await renderAudio(dir, { frame: 0, output, fps, verbose: values.verbose });
       console.log(written ? `Wrote ${output}` : "This video has no audio");
       return;
     }

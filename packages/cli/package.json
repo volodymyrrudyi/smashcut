@@ -29,7 +29,8 @@
   "files": [
     "bin",
     "src",
-    "skills"
+    "skills",
+    "!src/**/*.test.ts"
   ],
   "engines": {
     "node": ">=24"

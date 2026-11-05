@@ -32,6 +32,14 @@ export async function openVideo(
 }
 
 export async function captureFrame(page: Page, frame: number): Promise<Buffer> {
-  await page.evaluate((f) => window.__smashcut!.seek(f), frame);
-  return page.screenshot({ type: "png" });
+  try {
+    await page.evaluate(async (f) => {
+      if (window.__smashcut_error) throw new Error(window.__smashcut_error);
+      await window.__smashcut!.seek(f);
+      if (window.__smashcut_error) throw new Error(window.__smashcut_error);
+    }, frame);
+    return await page.screenshot({ type: "png" });
+  } catch (cause) {
+    throw new Error(`Failed to capture frame ${frame}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+  }
 }

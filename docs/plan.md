@@ -4,7 +4,7 @@ Videos defined as code. Each video is a folder with `timeline.ts`, `assets/` and
 renderer is our own (an alternative to Remotion): a pure TypeScript model, a React runtime in headless Chromium,
 and ffmpeg for encoding.
 
-_Last updated: 2026-10-28_
+_Last updated: 2026-11-05_
 
 ## Architecture (as built)
 
@@ -262,8 +262,15 @@ Key decisions:
 ### Next up / nice to have
 - [ ] **`smashcut capture <url>`.** Turn `examples/footage/capture.ts` into a CLI command: record a scripted web page
       walkthrough (clicks, scrolls, waits) on virtual time into footage.
-- [ ] **Leaner footage cache.** Extract only the trimmed ranges, scale frames to the clip's on-screen size × `--scale`,
-      and prune stale cache entries.
+- [x] **Bounded footage extraction and cache pruning.** Stills, sheets and range renders prepare exact source-frame
+      indices, deduplicating trims, loops and speed changes. Preview decodes one-second batches. `smashcut cache`
+      reports usage and `--prune` removes stale generated entries. Tests compare sparse extraction to a full decode.
+- [x] **Audio memory profiling and bounded transfer.** `npm run profile:audio` measures browser and Node RSS.
+      CLI WAV export transfers at most 32,768 stereo samples at a time and releases the mix after writing it;
+      integration tests compare the WAV byte-for-byte with the legacy whole-payload bridge. Results are in
+      `docs/performance/`.
+- [ ] **Optional reduced-resolution footage caches.** Cache display-sized frames for previews while retaining
+      full source detail for zooms and high-resolution renders.
 - [ ] **Audio files** (`sound(asset("track.mp3"))`), decoded with ffmpeg. Deferred by decision on 2026-10-28. The
       footage audio decoding can be reused, so this is now cheap.
 - [ ] **Pitch-preserving speed change** for footage audio (e.g. ffmpeg `atempo` at decode time).
@@ -273,7 +280,10 @@ Key decisions:
 - [ ] **Alpha output** (ProRes 4444 / WebM VP9) for overlays.
 - [ ] **Faster capture.** CDP `beginFrame` / JPEG intermediates. Currently about 40 fps at 1080p and about 12 fps at
       4K, with 8 workers on a 16-core Mac.
-- [ ] **Golden-frame pixel-diff tests** per node type, and an end-to-end render test in CI (including a footage clip).
+- [x] **Render regression tests.** Analytic solid/image/fade golden frames, a visual baseline for text, captions,
+      frame chrome, decor and React, seek-order checks, media replacement, failed asset/setup handling, and
+      single/parallel MP4 checks with moving footage, audio timing and ffprobe stream assertions. CI runs
+      `npm run test:integration`; unit tests cover readiness failures, validation and worker cleanup.
 - [ ] **Timeline cue helpers.** Expose resolved clip start times so audio cues don't need hand-computed scene
       offsets. Most examples compute scene starts by hand (`SA`, `S_CODE`, `starts[]`, ...).
 - [ ] **Richer typing.** `\t` / `\n` moving focus between fields, selecting and replacing existing text, and a
@@ -295,8 +305,9 @@ Key decisions:
   examples register it with `hello/lib/Fonts.tsx`) the system font is used.
 - A text caret appended to a centred `text()` shifts the text by half a caret width while it blinks. Left-aligned
   fields (as in `examples/typing`) are unaffected.
-- The footage cache stores every frame of the whole file at full source resolution, so long or 4K clips take a lot
-  of disk space and extraction time (767 MB for 60s of 4K).
+- Footage frames retain full source resolution. A render using a whole 4K recording can still need substantial
+  disk space; sparse commands only cache their selected indices. ffmpeg may decode earlier source frames to keep
+  frame selection exact. Source-resolution scaling is a separate optimization.
 - Footage audio follows `playbackRate` by resampling, so its pitch shifts with the speed.
 - Footage must be a file inside the project. URLs aren't supported.
 - Examples share code through `examples/hello/lib`, but each keeps its own copy of `inter.woff2` (and `launch`

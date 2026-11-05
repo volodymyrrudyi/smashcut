@@ -132,7 +132,9 @@ function Picture({ node, src }: { node: ImageNode | VideoNode; src: string }) {
     const img = ref.current!;
     // Footage swaps `src` every frame, which rejects the previous decode; only report current ones.
     let stale = false;
-    delayRender(img.decode().catch(() => !stale && console.error(`[smashcut] failed to load ${node.kind} ${src}`)));
+    delayRender(img.decode().catch((cause) => {
+      if (!stale) throw new Error(`[smashcut] Failed to load ${node.kind} ${src}`, { cause });
+    }));
     return () => {
       stale = true;
     };

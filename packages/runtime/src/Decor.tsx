@@ -55,7 +55,13 @@ const CORNERS: Record<Exclude<Position, "center">, CSSProperties> = {
 function Watermark({ decor }: { decor: WatermarkDecor }) {
   const ref = useRef<HTMLImageElement>(null);
   useLayoutEffect(() => {
-    if (ref.current) delayRender(ref.current.decode().catch(() => console.error(`[smashcut] failed to load watermark ${decor.src}`)));
+    const img = ref.current;
+    if (!img) return;
+    let stale = false;
+    delayRender(img.decode().catch((cause) => {
+      if (!stale) throw new Error(`[smashcut] Failed to load watermark ${decor.src}`, { cause });
+    }));
+    return () => { stale = true; };
   }, [decor.src]);
   const margin = decor.margin ?? 40;
   return (

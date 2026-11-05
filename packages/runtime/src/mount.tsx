@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
   describeTimeline,
+  footageRequests,
+  type FootageRequest,
   missingVoices,
   mixAudio,
   resolveComposition,
@@ -17,6 +19,8 @@ import { Preview } from "./Preview";
 import { Stage } from "./Stage";
 import { frameStore } from "./store";
 import { waitUntilReady } from "./ready";
+import { encodePcm } from "./pcm";
+import { prepareRender, resetFrameRandom } from "./determinism";
 
 export interface VideoMeta {
   width: number;
@@ -37,8 +41,13 @@ export interface SmashcutBridge {
   meta(): VideoMeta;
   /** Render `frame` and resolve once it is fully loaded and painted. */
   seek(frame: number): Promise<void>;
+  footage(ranges: [number, number][]): FootageRequest[];
   /** The mixed soundtrack as base64 interleaved 16-bit little-endian PCM, or null if silent. */
   audio(sampleRate: number): Promise<string | null>;
+  /** Prepare one mix, transfer bounded PCM slices, then release it. Used by CLI exports. */
+  prepareAudio(sampleRate: number): Promise<{ samples: number; sampleRate: number } | null>;
+  audioChunk(offset: number, samples: number): string;
+  releaseAudio(): void;
   /** Every clip, caption and sound with its times, for `smashcut inspect`. */
   inspect(): TimelineSummary;
 }
@@ -48,42 +57,6 @@ declare global {
     __smashcut?: SmashcutBridge;
     __smashcut_error?: string;
   }
-}
-
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const EPOCH = Date.UTC(2025, 0, 1);
-
-function encodePcm([left, right]: Stereo): string {
-  const pcm = new Int16Array(left.length * 2);
-  for (let i = 0; i < left.length; i++) {
-    pcm[2 * i] = Math.max(-1, Math.min(1, left[i])) * 0x7fff;
-    pcm[2 * i + 1] = Math.max(-1, Math.min(1, right[i])) * 0x7fff;
-  }
-  const bytes = new Uint8Array(pcm.buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
-}
-
-/** Make wall-clock time and randomness a pure function of the current frame. */
-function installDeterminism(fps: number) {
-  const now = () => (frameStore.get() / fps) * 1000;
-  Date.now = () => EPOCH + now();
-  performance.now = now;
-  let random = mulberry32(0);
-  Math.random = () => random();
-  frameStore.subscribe(() => {
-    random = mulberry32(frameStore.get() + 1);
-  });
 }
 
 /** A small status line over the dev preview (voiceover generation). */
@@ -145,7 +118,8 @@ export async function mount(composition: Composition, el = document.getElementBy
   }
 
   if (renderMode) {
-    installDeterminism(comp.fps);
+    prepareRender(comp.fps);
+    resetFrameRandom(frameStore.get());
   } else {
     const fromHash = Number(location.hash.slice(1));
     if (Number.isInteger(fromHash) && fromHash > 0) frameStore.set(Math.min(fromHash, comp.durationInFrames - 1));
@@ -157,9 +131,12 @@ export async function mount(composition: Composition, el = document.getElementBy
     await Promise.all([loadMediaAudio(composition.media!), loadSoundFiles(composition)]);
     return mixAudio(composition, sampleRate);
   };
+  let exportMix: Stereo | null = null;
   const missing = missingVoices(composition.audio);
   if (!renderMode && missing.length) void generateVoices(missing);
-  flushSync(() => root.render(renderMode ? <Stage comp={comp} /> : <Preview comp={comp} composition={composition} audio={audio} />));
+  // Metadata and inspection must not trigger footage decoding or mount clips at a frame that will not be captured.
+  let mountedStage = false;
+  if (!renderMode) flushSync(() => root.render(<Preview comp={comp} composition={composition} audio={audio} />));
 
   window.__smashcut = {
     ready: true,
@@ -173,13 +150,37 @@ export async function mount(composition: Composition, el = document.getElementBy
       voices: { all: voiceRequests(composition.audio), missing },
     }),
     async seek(frame) {
-      flushSync(() => frameStore.set(frame));
+      if (!Number.isSafeInteger(frame) || frame < 0 || frame >= comp.durationInFrames) throw new Error(`Frame ${frame} is out of range`);
+      if (renderMode) resetFrameRandom(frame);
+      flushSync(() => {
+        frameStore.set(frame);
+        if (renderMode && !mountedStage) {
+          root.render(<Stage comp={comp} />);
+          mountedStage = true;
+        }
+      });
       await waitUntilReady();
     },
+    footage: (ranges) => footageRequests(comp, ranges),
     async audio(sampleRate) {
       const mix = await audio(sampleRate);
       return mix && encodePcm(mix);
     },
+    async prepareAudio(sampleRate) {
+      if (!Number.isSafeInteger(sampleRate) || sampleRate < 1) throw new Error("Audio sample rate must be a positive integer");
+      exportMix = null;
+      exportMix = await audio(sampleRate);
+      return exportMix ? { samples: exportMix[0].length, sampleRate } : null;
+    },
+    audioChunk(offset, samples) {
+      if (!exportMix) throw new Error("Call prepareAudio() before requesting PCM");
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset > exportMix[0].length ||
+          !Number.isSafeInteger(samples) || samples < 1 || samples > 32768) {
+        throw new Error("Audio chunks need a valid offset and 1..32768 samples");
+      }
+      return encodePcm(exportMix, offset, samples);
+    },
+    releaseAudio() { exportMix = null; },
     inspect: () => describeTimeline(comp, composition),
   };
 }

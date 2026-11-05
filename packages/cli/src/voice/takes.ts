@@ -64,13 +64,15 @@ async function probeDuration(file: string): Promise<number | undefined> {
 const jobs = new Map<string, Promise<VoiceTake>>();
 
 /** Generate one take and store it (audio + JSON). Concurrent calls for the same request share the work. */
-export function generateTake(root: string, req: VoiceRequest, provider: VoiceProvider = getProvider(req.provider)): Promise<VoiceTake> {
+export function generateTake(root: string, req: VoiceRequest, provider: VoiceProvider = getProvider(req.provider), signal?: AbortSignal): Promise<VoiceTake> {
   const id = `${path.resolve(root)}\0${voiceKey(req)}`;
   let job = jobs.get(id);
   if (!job) {
     job = (async () => {
       const key = providerKey(provider);
-      const result = await provider.synthesize(req, key);
+      signal?.throwIfAborted();
+      const result = await provider.synthesize(req, key, signal);
+      signal?.throwIfAborted();
       const dir = path.join(root, VOICE_DIR);
       await mkdir(dir, { recursive: true });
       const name = takeName(req);
@@ -107,7 +109,9 @@ export async function generateMissing(
   root: string,
   requests: readonly VoiceRequest[],
   log: (msg: string) => void = (m) => process.stderr.write(m + "\n"),
+  signal?: AbortSignal,
 ): Promise<VoiceTake[]> {
+  signal?.throwIfAborted();
   const have = new Set((await readTakes(root)).map(voiceKey));
   const todo = requests.filter((r) => !have.has(voiceKey(r)));
   if (!todo.length) return [];
@@ -116,15 +120,29 @@ export async function generateMissing(
   log(`Generating ${todo.length} voiceover line${todo.length === 1 ? "" : "s"}...`);
   const out: VoiceTake[] = [];
   const queue = [...todo];
+  const controller = new AbortController();
+  const workSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+  let failure: unknown;
   const worker = async () => {
-    for (let req = queue.shift(); req; req = queue.shift()) {
-      const take = await generateTake(root, req);
-      log(`  ${req.provider}/${req.voice}: “${req.text.length > 60 ? req.text.slice(0, 59) + "…" : req.text}” (${take.duration.toFixed(2)}s)`);
-      out.push(take);
+    try {
+      for (let req = queue.shift(); req; req = queue.shift()) {
+        workSignal.throwIfAborted();
+        const take = await generateTake(root, req, getProvider(req.provider), workSignal);
+        log(`  ${req.provider}/${req.voice}: “${req.text.length > 60 ? req.text.slice(0, 59) + "…" : req.text}” (${take.duration.toFixed(2)}s)`);
+        out.push(take);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        failure = error;
+        controller.abort(error);
+      }
+      throw error;
     }
   };
   // ElevenLabs allows a few concurrent requests even on small plans.
-  await Promise.all(Array.from({ length: Math.min(2, todo.length) }, worker));
+  await Promise.allSettled(Array.from({ length: Math.min(2, todo.length) }, worker));
+  if (controller.signal.aborted) throw failure;
+  signal?.throwIfAborted();
   return out;
 }
 

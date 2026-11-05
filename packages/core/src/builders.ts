@@ -1,3 +1,4 @@
+import { validateComposition } from "./validate";
 import type { ComponentType } from "react";
 import type { AudioClip } from "./audio/mix";
 import type {
@@ -44,7 +45,7 @@ export interface VideoOptions {
 
 export function defineVideo(opts: VideoOptions): Composition {
   const [width, height] = opts.size;
-  return {
+  const composition: Composition = {
     width,
     height,
     fps: opts.fps ?? 30,
@@ -54,6 +55,8 @@ export function defineVideo(opts: VideoOptions): Composition {
     audio: opts.audio,
     loudness: opts.loudness ?? -16,
   };
+  validateComposition(composition);
+  return composition;
 }
 
 /** URL of a file in the video's assets/ folder. */
