@@ -31,8 +31,8 @@ export interface VoiceProvider {
   name: string;
   /** Environment variable holding the API key. */
   keyEnv: string;
-  synthesize(req: VoiceRequest, key: string): Promise<Synthesis>;
-  voices(key: string): Promise<VoiceInfo[]>;
+  synthesize(req: VoiceRequest, key: string, signal?: AbortSignal): Promise<Synthesis>;
+  voices(key: string, signal?: AbortSignal): Promise<VoiceInfo[]>;
 }
 
 export const PROVIDERS: Record<string, VoiceProvider> = { elevenlabs };

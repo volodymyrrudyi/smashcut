@@ -82,7 +82,7 @@ describe("generating takes", () => {
   beforeEach(async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "smashcut-voice-"));
     calls = [];
-    PROVIDERS.fake = fake;
+    PROVIDERS.fake = { ...fake };
     process.env.FAKE_TTS_KEY = "k";
   });
   afterEach(async () => {
@@ -113,6 +113,21 @@ describe("generating takes", () => {
     delete process.env.FAKE_TTS_KEY;
     await expect(generateMissing(root, [req("hello")], () => {})).rejects.toThrow(/FAKE_TTS_KEY is not set/);
     expect(calls).toEqual([]);
+  });
+
+  it("cancels sibling synthesis and does not start queued lines after a failure", async () => {
+    let siblingStopped = false;
+    PROVIDERS.fake.synthesize = async (request, _key, signal) => {
+      calls.push(request.text);
+      if (request.text === "fail") throw new Error("provider failed");
+      return new Promise((_, reject) => {
+        signal!.addEventListener("abort", () => { siblingStopped = true; reject(signal!.reason); });
+      });
+    };
+    await expect(generateMissing(root, [req("fail"), req("waiting"), req("queued")], () => {})).rejects.toThrow("provider failed");
+    expect(siblingStopped).toBe(true);
+    expect(calls).toEqual(["fail", "waiting"]);
+    expect(await readTakes(root)).toEqual([]);
   });
 
   it("finds and removes takes the timeline no longer uses", async () => {

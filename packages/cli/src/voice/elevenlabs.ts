@@ -56,7 +56,10 @@ export function noVoiceMessage(wanted: string, voices: VoiceInfo[]): string {
 }
 
 async function call(path: string, key: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(API + path, { ...init, headers: { "xi-api-key": key, ...init.headers } });
+  // Bound both response headers and body consumption. Do not retry billable POSTs automatically.
+  const timeout = AbortSignal.timeout(120_000);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  const res = await fetch(API + path, { ...init, signal, headers: { "xi-api-key": key, ...init.headers } });
   if (!res.ok) {
     let detail = await res.text();
     try {
@@ -70,26 +73,34 @@ async function call(path: string, key: string, init: RequestInit = {}): Promise<
   return res;
 }
 
-let voiceList: Promise<VoiceInfo[]> | undefined;
+const voiceLists = new Map<string, Promise<VoiceInfo[]>>();
 
 export const elevenlabs: VoiceProvider = {
   name: "elevenlabs",
   keyEnv: "ELEVENLABS_API_KEY",
 
-  async voices(key) {
-    voiceList ??= call("/v1/voices", key)
-      .then((r) => r.json() as Promise<{ voices: { voice_id: string; name: string; category?: string; description?: string }[] }>)
-      .then(({ voices }) =>
-        voices.map((v) => ({ id: v.voice_id, name: v.name, description: [v.category, v.description].filter(Boolean).join(": ") || undefined })),
-      );
-    voiceList.catch(() => (voiceList = undefined));
-    return voiceList;
+  async voices(key, signal) {
+    // Cancellable requests own their fetch; account lists must never leak between credentials.
+    let list = signal ? undefined : voiceLists.get(key);
+    if (!list) {
+      list = call("/v1/voices", key, { signal })
+        .then((r) => r.json() as Promise<{ voices: { voice_id: string; name: string; category?: string; description?: string }[] }>)
+        .then(({ voices }) => voices.map((v) => ({
+          id: v.voice_id, name: v.name,
+          description: [v.category, v.description].filter(Boolean).join(": ") || undefined,
+        })));
+      if (!signal) {
+        voiceLists.set(key, list);
+        void list.catch(() => voiceLists.delete(key));
+      }
+    }
+    return list;
   },
 
-  async synthesize(req: VoiceRequest, key) {
+  async synthesize(req: VoiceRequest, key, signal) {
     let voiceId = req.voice;
     if (!looksLikeId(req.voice)) {
-      const voices = await this.voices(key);
+      const voices = await this.voices(key, signal);
       const found = matchVoice(voices, req.voice);
       if (!found) throw new Error(noVoiceMessage(req.voice, voices));
       voiceId = found.id;
@@ -106,6 +117,7 @@ export const elevenlabs: VoiceProvider = {
     };
     const res = await call(`/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${OUTPUT_FORMAT}`, key, {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

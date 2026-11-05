@@ -1,0 +1,62 @@
+{
+  "platform": "linux",
+  "node": "v26.13.0",
+  "sampleRate": 48000,
+  "samplingIntervalMs": 10,
+  "results": [
+    {
+      "mode": "chunked",
+      "duration": 10,
+      "pcmBytes": 1920000,
+      "elapsedMs": 133,
+      "baselineRss": {
+        "renderer": 113942528,
+        "node": 559181824
+      },
+      "peakRss": {
+        "renderer": 140869632,
+        "node": 564424704
+      },
+      "additionalRss": {
+        "renderer": 26927104,
+        "node": 5242880
+      }
+    },
+    {
+      "mode": "chunked",
+      "duration": 30,
+      "pcmBytes": 5760000,
+      "elapsedMs": 302,
+      "baselineRss": {
+        "renderer": 113733632,
+        "node": 719130624
+      },
+      "peakRss": {
+        "renderer": 154251264,
+        "node": 720310272
+      },
+      "additionalRss": {
+        "renderer": 40517632,
+        "node": 1179648
+      }
+    },
+    {
+      "mode": "chunked",
+      "duration": 60,
+      "pcmBytes": 11520000,
+      "elapsedMs": 628,
+      "baselineRss": {
+        "renderer": 113819648,
+        "node": 831410176
+      },
+      "peakRss": {
+        "renderer": 181780480,
+        "node": 869289984
+      },
+      "additionalRss": {
+        "renderer": 67960832,
+        "node": 37879808
+      }
+    }
+  ]
+}

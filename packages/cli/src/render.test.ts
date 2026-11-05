@@ -16,3 +16,12 @@ describe("sheetFrames", () => {
   });
 });
 
+
+describe("invalid sheet options", () => {
+  it.each([NaN, Infinity, 0, -1, 1.5])("rejects count %s", (count) => {
+    expect(() => sheetFrames(120, 30, { count })).toThrow("count");
+  });
+  it.each([NaN, Infinity, 0, -1])("rejects interval %s", (every) => {
+    expect(() => sheetFrames(120, 30, { every })).toThrow("every");
+  });
+});

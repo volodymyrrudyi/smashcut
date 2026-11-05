@@ -1,3 +1,4 @@
+import { validateComposition } from "./validate";
 import { footageDuration, mediaInfo } from "./footage";
 import type { Composition, FrameContext, Node, TransitionSpec } from "./types";
 
@@ -126,6 +127,7 @@ function resolveNode(
 }
 
 export function resolveComposition(comp: Composition): ResolvedComposition {
+  validateComposition(comp);
   const { fps, media } = comp;
   let durationInFrames = comp.duration !== undefined ? toFrames(comp.duration, fps) : 0;
   if (comp.duration === undefined) {
@@ -134,7 +136,7 @@ export function resolveComposition(comp: Composition): ResolvedComposition {
       if (d !== undefined) durationInFrames = Math.max(durationInFrames, toFrames(layer.at ?? 0, fps) + d);
     });
   }
-  if (durationInFrames <= 0) {
+  if (!Number.isSafeInteger(durationInFrames) || durationInFrames <= 0) {
     throw new Error("Cannot infer the video duration: set `duration` on defineVideo() or on a layer");
   }
   const layers = comp.layers.map((layer, i) => {

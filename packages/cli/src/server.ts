@@ -179,7 +179,15 @@ async function serveVoiceGenerate(root: string, req: IncomingMessage, res: Serve
     if (requests.length > MAX_LINES || !requests.every(valid)) {
       throw new Error(`requests must be at most ${MAX_LINES} lines of { provider, voice, text } up to ${MAX_LINE_CHARS} characters`);
     }
-    const takes = await generateMissing(root, requests);
+    const controller = new AbortController();
+    const disconnect = () => { if (!res.writableEnded) controller.abort(new Error("Voiceover client disconnected")); };
+    res.once("close", disconnect);
+    let takes;
+    try {
+      takes = await generateMissing(root, requests, undefined, controller.signal);
+    } finally {
+      res.off("close", disconnect);
+    }
     res.end(JSON.stringify({ generated: takes.length }));
   } catch (err) {
     res.statusCode = 500;
@@ -191,6 +199,7 @@ async function serveVoiceGenerate(root: string, req: IncomingMessage, res: Serve
 function smashcutPlugin(media: MediaCache, root: string): Plugin {
   return {
     name: "smashcut",
+    async closeBundle() { await media.close(); },
     resolveId(id) {
       if (id === ENTRY_ID || id === RESOLVED_ENTRY_ID) return RESOLVED_ENTRY_ID;
       if (id === VOICES_ID || id === RESOLVED_VOICES_ID) return RESOLVED_VOICES_ID;
@@ -204,8 +213,9 @@ function smashcutPlugin(media: MediaCache, root: string): Plugin {
       if (id !== RESOLVED_ENTRY_ID) return;
       return [
         `import "${VOICES_ID}";`,
-        `import composition from "/timeline.ts";`,
-        `import { mount } from "@smashcut/runtime";`,
+        `import { mount, prepareRender } from "@smashcut/runtime";`,
+        `if (new URLSearchParams(location.search).has("render")) prepareRender();`,
+        `const { default: composition } = await import("/timeline.ts");`,
         `if (!composition || !Array.isArray(composition.layers)) {`,
         `  throw new Error("timeline.ts must \`export default defineVideo({...})\`");`,
         `}`,
@@ -312,8 +322,13 @@ export async function startServer(
       fs: { allow: [root, ...Object.values(alias)] },
     },
   });
-  await server.listen();
-  const url = server.resolvedUrls?.local[0];
-  if (!url) throw new Error("Vite dev server did not report a URL");
-  return { server, url, media, root, refreshVoices: () => refreshVoices(server) };
+  try {
+    await server.listen();
+    const url = server.resolvedUrls?.local[0];
+    if (!url) throw new Error("Vite dev server did not report a URL");
+    return { server, url, media, root, refreshVoices: () => refreshVoices(server) };
+  } catch (error) {
+    await server.close();
+    throw error;
+  }
 }

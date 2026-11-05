@@ -1,4 +1,5 @@
 import type { Composition, MediaInfo, Node, VideoNode } from "./types";
+import type { ResolvedClip, ResolvedComposition } from "./resolve";
 
 const trimOf = (node: VideoNode, info: MediaInfo): [number, number] => {
   const start = Math.max(0, node.trim?.[0] ?? 0);
@@ -49,4 +50,41 @@ export function footageSources(layers: Node[]): string[] {
   };
   layers.forEach(walk);
   return [...out];
+}
+
+export interface FootageRequest {
+  src: string;
+  /** Unique source-frame indices sampled at the composition's frame rate. */
+  frames: number[];
+}
+
+/** Exact source frames visible in the requested inclusive timeline ranges, respecting ancestor cutoffs. */
+export function footageRequests(
+  comp: ResolvedComposition,
+  ranges: readonly (readonly [number, number])[],
+): FootageRequest[] {
+  for (const [from, to] of ranges) {
+    if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to < from) {
+      throw new Error("Footage ranges must be nonnegative inclusive integer frame ranges");
+    }
+  }
+  const bySource = new Map<string, Set<number>>();
+  const walk = (clip: ResolvedClip, begin: number, end: number) => {
+    begin = Math.max(begin, clip.start);
+    end = Math.min(end, clip.start + clip.duration - 1);
+    if (begin > end) return;
+    if (clip.node.kind === "video") {
+      const node = clip.node;
+      let indices = bySource.get(node.src);
+      if (!indices) bySource.set(node.src, indices = new Set());
+      for (const [from, to] of ranges) {
+        for (let frame = Math.max(begin, from); frame <= Math.min(end, to); frame++) {
+          indices.add(footageFrame(node, comp.media[node.src], (frame - clip.start) / comp.fps, comp.fps));
+        }
+      }
+    }
+    clip.children.forEach((child) => walk(child, begin, end));
+  };
+  comp.layers.forEach((clip) => walk(clip, 0, comp.durationInFrames - 1));
+  return [...bySource].filter(([, frames]) => frames.size).map(([src, frames]) => ({ src, frames: [...frames].sort((a, b) => a - b) }));
 }

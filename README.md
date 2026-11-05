@@ -123,6 +123,7 @@ Run them in a video folder as `npx smashcut <command> .` (or `npm run dev` / `st
 | `sheet <dir>` | A contact sheet: 12 labelled frames in one PNG (`--count N`, `--every 0.5`) |
 | `inspect <dir>` | Print every clip, caption and sound with its start and end (`--json` for scripts) |
 | `audio <dir>` | Export just the soundtrack as WAV |
+| `cache <dir>` | Report media cache size; `--prune` removes stale generated entries (`--json` for scripts) |
 | `voiceover <dir>` | Generate missing voiceover lines into `voiceovers/` (`--prune` deletes unused takes); `voices` lists voices |
 
 ## Working with coding agents
@@ -180,7 +181,8 @@ flowchart LR
 | [`@smashcut/runtime`](packages/runtime) | The browser side: renders any frame with React and waits for fonts, images and `delayRender` |
 | [`@smashcut/three`](packages/three) | Optional three.js clips |
 
-Rendering is deterministic: `Date.now`, `performance.now` and `Math.random` follow the frame, footage is decoded
+For clips that calculate each frame from time and initialize persistent state with explicit `rng(seed)` seeds,
+rendering is deterministic: `Date.now`, `performance.now` and `Math.random` follow the frame, footage is decoded
 to exact frames ahead of time, and the frame range is split across parallel browsers. More in the
 [guide](docs/guide.md#how-rendering-works).
 
@@ -191,6 +193,7 @@ npm install
 npm run smashcut -- dev examples/hello      # preview an example
 npm run smashcut -- sheet examples/hello    # check it at a glance
 npm test && npm run typecheck
+npm run test:integration                    # requires ffmpeg, ffprobe and Chromium
 ```
 
 [`docs/plan.md`](docs/plan.md) tracks what's done and what's next, and [`docs/publishing.md`](docs/publishing.md)
